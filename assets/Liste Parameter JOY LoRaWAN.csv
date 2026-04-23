@@ -1,0 +1,189 @@
+﻿#;Type;Category;Bezeichnung (Topic) DE;Bezeichnung (Topic) EN;Variable Downlink Encoder;Header Downlink (Hex);Register Number Modbus;Modbus Protocol Address Decimal;Infotext Deutsch;Infotext Englisch;Wertebereich
+1;Configuration;Valve;Typ 6-Wege Ventil;Type 6 Way-Valve;type_6_way_valve;3;3;2;Typän des 6-Wüge Ventils konfigurieren. Wert gemäß Ventiltypentabelle eingeben.;Configure 6-way valve type. Enter value according to valve type table.;0...6
+2;Configuration;General;Vorgabe Sprache;Language Setting;language;4;4;3;Gerätesprache einstellen. 0 = Deutsch, 1 = Englisch, 2 = Französisch.;Set device language. 0 = German, 1 = English, 2 = French.;0...1
+3;Configuration;Offset;Offset interner Sensor;Internal Sensor Offset;offset_internal;5;5;4;Korrekturwert für den internen Sensor in 0,1 K Schritten (z. B. 5 = +0,5 K).;Correction value for the internal sensor in 0.1 K steps (e.g. 5 = +0.5 K).;-30...+30
+4;Configuration;Offset;Offset externer Sensor;External Sensor Offset;offset_external;6;6;5;Korrekturwert für den externen Sensor in 0,1 K Schritten (z. B. -3 = -0,3 K).;Correction value for the external sensor in 0.1 K steps (e.g. -3 = -0.3 K).;-30...+30
+5;Configuration;Display;Einheit Temperatur;Temperature Unit;unit_temperature;7;7;6;Anzeigeeinheit für Temperatur. 0 = Celsius (°C), 1 = Fahrenheit (°F).;Display unit for temperature. 0 = Celsius (°C), 1 = Fahrenheit (°F).;0...1
+6;Configuration;Display;Format Uhrzeit;Time Format;format_time;8;8;7;Uhrzeitformat wählen. 0 = 24-Stunden-Format, 1 = 12-Stunden-Format (AM/PM).;Select time format. 0 = 24-hour format, 1 = 12-hour format (AM/PM).;0...1
+7;Configuration;Display;Format Datum;Date Format;format_date;9;9;8;Datumsformat wählen. 0 = TT.MM.JJJJ, 1 = MM/TT/JJJJ.;Select date format. 0 = DD.MM.YYYY, 1 = MM/DD/YYYY.;0...1
+8;Configuration;Fan;Anzahl Lüfterstufen;Number of Fan Levels;fan_stages_count;A;10;9;Anzahl der verfügbaren Lüfterstufen eingeben (z. B. 3 für Stufe 1-3).;Enter number of available fan levels (e.g. 3 for levels 1-3).;0...5
+9;Configuration;Display;Anzeige Hauptbildschirm;Main Display;display_main_screen;B;11;10;Informationen für den Hauptbildschirm festlegen. 0 = Temperatur, 1 = Feuchte, 2 = CO2.;Define main screen content. 0 = Temperature, 1 = Humidity, 2 = CO2.;0...2
+10;Configuration;Footer;Fußzeile Symbol 1;Footer Symbol 1;symbol_1_footer;C;12;11;Symbol für die erste Position in der Fußzeile. Wert gemäß Symboltabelle eingeben.;Symbol for the first footer position. Enter value according to symbol table.;0...15
+11;Configuration;Footer;Fußzeile Symbol 2;Footer Symbol 2;symbol_2_footer;D;13;12;Symbol für die zweite Position in der Fußzeile. Wert gemäß Symboltabelle eingeben.;Symbol for the second footer position. Enter value according to symbol table.;0...15
+12;Configuration;Footer;Fußzeile Symbol 3;Footer Symbol 3;symbol_3_footer;E;14;13;Symbol für die dritte Position in der Fußzeile. Wert gemäß Symboltabelle eingeben.;Symbol for the third footer position. Enter value according to symbol table.;0...15
+13;Configuration;Footer;Fußzeile Symbol 4;Footer Symbol 4;symbol_4_footer;F;15;14;Symbol für die vierte Position in der Fußzeile. Wert gemäß Symboltabelle eingeben.;Symbol for the fourth footer position. Enter value according to symbol table.;0...15
+14;Configuration;Footer;Fußzeile Symbol 5;Footer Symbol 5;symbol_5_footer;10;16;15;Symbol für die fünfte Position in der Fußzeile. Wert gemäß Symboltabelle eingeben.;Symbol for the fifth footer position. Enter value according to symbol table.;0...15
+15;Configuration;Input;Konfiguration Eingang 1;Configuration Input 1;config_input_1;13;19;18;Funktion von Eingang 1 festlegen. Wert gemäß Eingangskonfigurationstabelle eingeben.;Define function of input 1. Enter value according to input configuration table.;0...10
+16;Configuration;Input;Konfiguration Eingang 2;Configuration Input 2;config_input_2;14;20;19;Funktion von Eingang 2 festlegen. Wert gemäß Eingangskonfigurationstabelle eingeben.;Define function of input 2. Enter value according to input configuration table.;0...10
+17;Configuration;Fan;Zuordnung Lüfterstufen;Assingment Fan-Stages;fan_stage_assignment;63;99;98;Zuordnung der Lüfterstufen zu den Ausgängen konfigurieren. Wert gemäß Zuordnungstabelle eingeben.;Configure assignment of fan stages to outputs. Enter value according to assignment table.;0...5
+18;Configuration;Controller;Funktion Regler Heizen;Controller function heating;function_ctrl_heating;6D;109;108;Reglerfunktion für den Heizbetrieb festlegen. Wert gemäß Reglerfunktionstabelle eingeben.;Define controller function for heating mode. Enter value according to controller function table.;0...3
+19;Configuration;Controller;Funktion Regler Kühlen;Controller function cooling;function_ctrl_cooling;6E;110;109;Reglerfunktion für den Kühlbetrieb festlegen. Wert gemäß Reglerfunktionstabelle eingeben.;Define controller function for cooling mode. Enter value according to controller function table.;0...3
+20;Configuration;Fan;Schritte Lüfterstufen;Fan stage steps;fan_stage_steps;6F;111;110;Schrittweite für die Umschaltung der Lüfterstufen in Prozent festlegen.;Define step size for fan stage switching in percent.;1...50
+21;Configuration;;Anzeige Sollwertverstellung;Setpoint adjustment display;display_setpoint_adj;73;115;114;Anzeige der Sollwertverstellung auf dem Display konfigurieren. 0 = deaktiviert, 1 = aktiviert.;Configure setpoint adjustment display on screen. 0 = disabled, 1 = enabled.;0...1
+22;Configuration;;Funktion An/Aus Taste;On/Off button function;function_btn_on_off;74;116;115;Funktion der An/Aus-Taste festlegen. 0 = deaktiviert, 1 = aktiviert.;Define on/off button function. 0 = disabled, 1 = enabled.;0...1
+23;Configuration;;Wirksinn Relais Heizen;Relay logic heating;logic_relay_heating;85;133;132;Wirksinn des Heizrelais einstellen. 0 = normal (NO), 1 = invertiert (NC).;Set heating relay logic. 0 = normal (NO), 1 = inverted (NC).;0...1
+24;Configuration;;Wirksinn Relais Kühlen;Relay logic cooling;logic_relay_cooling;86;134;133;Wirksinn des Kühlrelais einstellen. 0 = normal (NO), 1 = invertiert (NC).;Set cooling relay logic. 0 = normal (NO), 1 = inverted (NC).;0...1
+25;Configuration;;Wirksinn Analoger Ausgang Heizen;Analog logic heating;logic_analog_heating;95;149;148;Wirksinn des analogen Heizausgangs einstellen. 0 = normal (0â€“10 V), 1 = invertiert (10â€“0 V).;Set analog heating output logic. 0 = normal (0-10 V), 1 = inverted (10-0 V).;0...1
+26;Configuration;;Wirksinn Analoger Ausgang Kühlen;Analog logic cooling;logic_analog_cooling;96;150;149;Wirksinn des analogen Kühlausgangs einstellen. 0 = normal (0â€“10 V), 1 = invertiert (10â€“0 V).;Set analog cooling output logic. 0 = normal (0-10 V), 1 = inverted (10-0 V).;0...1
+27;Runtime;Setpoint;Basissollwert;Base Setpoint;setpoint_base;100;256;255;Gewünschten Basissollwert in 0,1 K Schritten eingeben (z. B. 210 = 21,0 °C).;Enter desired base setpoint in 0.1 K steps (e.g. 210 = 21.0 °C).;50...350
+28;Runtime;Setpoint;Sollwert Offset;Setpoint Offset;setpoint_offset;101;257;256;Offset zum Basissollwert in 0,1 K Schritten (z. B. 10 = +1,0 K).;Offset to base setpoint in 0.1 K steps (e.g. 10 = +1.0 K).;-30...+30
+29;Runtime;Overwrite ;Vorgabe Präsenz;Presence Setting;presence_overwrite;102;258;257;Präsenzzustand überschreiben. 0 = abwesend, 1 = anwesend, 2 = freigegeben (automatisch).;Override presence state. 0 = absent, 1 = present, 2 = released (automatic).;0...2
+30;Runtime;;Vorgabe Taupunkt;Dew Point Setting;dewpoint_overwrite;103;259;258;Taupunktsperre überschreiben. 0 = keine Sperre, 1 = Taupunkt erkannt (Sperre aktiv).;Override dew point lock. 0 = no lock, 1 = dew point detected (lock active).;0...1
+31;Runtime;;Vorgabe Fensterkontakt/Energiesperre;Window Contact/Energy Lock;windowcontact_overwrite;104;260;259;Fensterkontaktzustand überschreiben. 0 = Fenster geschlossen, 1 = Fenster offen (Energiesperre).;Override window contact state. 0 = window closed, 1 = window open (energy lock).;0...1
+32;Runtime;;Vorgabe Change-Over;Change-Over Setting;changeover_overwrite;105;261;260;Betriebsart überschreiben. 0 = Kühlen, 1 = Heizen, 2 = freigegeben (automatisch).;Override operating mode. 0 = cooling, 1 = heating, 2 = released (automatic).;0...2
+33;Runtime;;Gerät Ein/Standby (Aus);Device On/Standby (Off);standby;106;262;261;Gerätestatus setzen. 0 = Standby (Aus), 1 = Ein (normaler Betrieb).;Set device status. 0 = Standby (Off), 1 = On (normal operation).;0...1
+34;Runtime;;Freigabe Tasten;Button Enable;button_enable;107;263;262;Tastensperrung einstellen. 0 = alle Tasten gesperrt, 1 = alle Tasten freigegeben.;Set button lock. 0 = all buttons locked, 1 = all buttons enabled.;0...1
+35;Runtime;;Vorgabe Alarm;Alarm Setting;alarm;108;264;263;Alarmzustand setzen. 0 = kein Alarm, 1 = Alarm aktiv.;Set alarm state. 0 = no alarm, 1 = alarm active.;0...1
+36;Runtime;Time/Date;Uhrzeit Stunde;Time Hour;hour;109;265;264;Aktuelle Stunde eintragen (0-23).;Enter current hour (0-23).;0...23
+37;Runtime;Time/Date;Uhrzeit Minute;Time Minute;minute;10A;266;265;Aktuelle Minute eintragen (0-59).;Enter current minute (0-59).;0...59
+38;Runtime;Time/Date;Datum Tag;Date Day;day;10B;267;266;Aktuellen Tag eintragen (1-31).;Enter current day (1-31).;1...31
+39;Runtime;Time/Date;Datum Monat;Date Month;month;10C;268;267;Aktuellen Monat eintragen (1-12).;Enter current month (1-12).;1...12
+40;Runtime;Time/Date;Datum Jahr;Date Year;year;10D;269;268;Aktuelles Jahr eintragen (z. B. 26-->2026).;Enter current year (e.g. 2026).;15...99
+41;Runtime;;Vorgabe Regler;Controller Setting;overwrite_controller;10E;270;269;Reglermodus überschreiben. 0 = aus, 1 = Heizen Auto, 2= Kühlen Auto, 3= Auto;Override controller mode. 0 = released (automatic), 1 = manually overridden.;0...3 
+42;Runtime;;Vorgabe Lüfterstufe;Fan Level Setting;fan_level_setting;10F;271;270;Lüfterstufe manuell vorgeben. 0 = Automatik, 1-5 = manuelle Stufe.;Manually set fan level. 0 = automatic, 1-5 = manual level.;0...5
+43;Runtime;;Vorgabe Ausgang Heizen;Heating Output Setting;heating_output_setting;110;272;271;Heizausgang manuell vorgeben in % (0-100). 0 = aus, 100 = volle Leistung.;Manually set heating output in % (0-100). 0 = off, 100 = full power.;0...100
+44;Runtime;;Vorgabe Ausgang Kühlen;Cooling Output Setting;cooling_output_setting;111;273;272;Kühlausgang manuell vorgeben in % (0-100). 0 = aus, 100 = volle Leistung.;Manually set cooling output in % (0-100). 0 = off, 100 = full power.;0...100
+45;Runtime;;Vorgabe ECO-Modus übersteuern;ECO Mode Override;eco_mode_override;111;273;274;ECO-Modus übersteuern. 0 = ECO-Modus inaktiv, 1 = ECO-Modus erzwungen.;Override ECO mode. 0 = ECO mode inactive, 1 = ECO mode forced.;0...1
+46;Runtime;;Vorgabe Ausgang 6-Wegeventil;6-Way Valve Output Setting;valve_6way_output_setting;112;274;273;Stellung des 6-Wegeventils vorgeben in % (0-100).;Set 6-way valve position in % (0-100).;0...100
+47;LoRaWAN ;Radio;Heartbeat;Heartbeat;heartbeat;C106;n.V.;n.V.;Heartbeat-Intervall in Minuten eintragen (z. B. 60 = alle 60 Minuten).;Enter heartbeat interval in minutes (e.g. 60 = every 60 minutes).;1...1440
+48;LoRaWAN ;Radio;Confirmation;Confirmation;confirmation;C21D;n.V.;n.V.;Bestätigungsmodus aktivieren. 0 = unbestätigt (Unconfirmed), 1 = bestätigt (Confirmed).;Enable confirmation mode. 0 = unconfirmed, 1 = confirmed.;0...1
+49;LoRaWAN ;Radio;ADR;ADR;adr;C217;n.V.;n.V.;Adaptive Data Rate aktivieren. 0 = ADR deaktiviert, 1 = ADR aktiviert.;Enable Adaptive Data Rate. 0 = ADR disabled, 1 = ADR enabled.;0...1
+50;LoRaWAN ;Radio;Data Rate;Data Rate;data_rate;C218;n.V.;n.V.;LoRaWAN Datenrate manuell einstellen (0-5, DR0 = SF12, DR5 = SF7).;Manually set LoRaWAN data rate (0-5, DR0 = SF12, DR5 = SF7).;0...5
+51;;;;;;;;;;;
+52;;;;;;;;;;;
+53;;;;;;;;;;;
+54;;;;;;;;;;;
+55;;;;;;;;;;;
+56;;;;;;;;;;;
+57;;;;;;;;;;;
+58;;;;;;;;;;;
+59;;;;;;;;;;;
+60;;;;;;;;;;;
+61;;;;;;;;;;;
+62;;;;;;;;;;;
+63;;;;;;;;;;;
+64;;;;;;;;;;;
+65;;;;;;;;;;;
+66;;;;;;;;;;;
+67;;;;;;;;;;;
+68;;;;;;;;;;;
+69;;;;;;;;;;;
+70;;;;;;;;;;;
+71;;;;;;;;;;;
+72;;;;;;;;;;;
+73;;;;;;;;;;;
+74;;;;;;;;;;;
+75;;;;;;;;;;;
+76;;;;;;;;;;;
+77;;;;;;;;;;;
+78;;;;;;;;;;;
+79;;;;;;;;;;;
+80;;;;;;;;;;;
+81;;;;;;;;;;;
+82;;;;;;;;;;;
+83;;;;;;;;;;;
+84;;;;;;;;;;;
+85;;;;;;;;;;;
+86;;;;;;;;;;;
+87;;;;;;;;;;;
+88;;;;;;;;;;;
+89;;;;;;;;;;;
+90;;;;;;;;;;;
+91;;;;;;;;;;;
+92;;;;;;;;;;;
+93;;;;;;;;;;;
+94;;;;;;;;;;;
+95;;;;;;;;;;;
+96;;;;;;;;;;;
+97;;;;;;;;;;;
+98;;;;;;;;;;;
+99;;;;;;;;;;;
+100;;;;;;;;;;;
+101;;;;;;;;;;;
+102;;;;;;;;;;;
+103;;;;;;;;;;;
+104;;;;;;;;;;;
+105;;;;;;;;;;;
+106;;;;;;;;;;;
+107;;;;;;;;;;;
+108;;;;;;;;;;;
+109;;;;;;;;;;;
+110;;;;;;;;;;;
+111;;;;;;;;;;;
+112;;;;;;;;;;;
+113;;;;;;;;;;;
+114;;;;;;;;;;;
+115;;;;;;;;;;;
+116;;;;;;;;;;;
+117;;;;;;;;;;;
+118;;;;;;;;;;;
+119;;;;;;;;;;;
+120;;;;;;;;;;;
+121;;;;;;;;;;;
+122;;;;;;;;;;;
+123;;;;;;;;;;;
+124;;;;;;;;;;;
+125;;;;;;;;;;;
+126;;;;;;;;;;;
+127;;;;;;;;;;;
+128;;;;;;;;;;;
+129;;;;;;;;;;;
+130;;;;;;;;;;;
+131;;;;;;;;;;;
+132;;;;;;;;;;;
+133;;;;;;;;;;;
+134;;;;;;;;;;;
+135;;;;;;;;;;;
+136;;;;;;;;;;;
+137;;;;;;;;;;;
+138;;;;;;;;;;;
+139;;;;;;;;;;;
+140;;;;;;;;;;;
+141;;;;;;;;;;;
+142;;;;;;;;;;;
+143;;;;;;;;;;;
+144;;;;;;;;;;;
+145;;;;;;;;;;;
+146;;;;;;;;;;;
+147;;;;;;;;;;;
+148;;;;;;;;;;;
+149;;;;;;;;;;;
+150;;;;;;;;;;;
+151;;;;;;;;;;;
+152;;;;;;;;;;;
+153;;;;;;;;;;;
+154;;;;;;;;;;;
+155;;;;;;;;;;;
+156;;;;;;;;;;;
+157;;;;;;;;;;;
+158;;;;;;;;;;;
+159;;;;;;;;;;;
+160;;;;;;;;;;;
+161;;;;;;;;;;;
+162;;;;;;;;;;;
+163;;;;;;;;;;;
+164;;;;;;;;;;;
+165;;;;;;;;;;;
+166;;;;;;;;;;;
+167;;;;;;;;;;;
+168;;;;;;;;;;;
+169;;;;;;;;;;;
+170;;;;;;;;;;;
+171;;;;;;;;;;;
+172;;;;;;;;;;;
+173;;;;;;;;;;;
+174;;;;;;;;;;;
+175;;;;;;;;;;;
+176;;;;;;;;;;;
+177;;;;;;;;;;;
+178;;;;;;;;;;;
+179;;;;;;;;;;;
+180;;;;;;;;;;;
+181;;;;;;;;;;;
+182;;;;;;;;;;;
+183;;;;;;;;;;;
+184;;;;;;;;;;;
+185;;;;;;;;;;;
+186;;;;;;;;;;;
+187;;;;;;;;;;;
+188;;;;;;;;;;;

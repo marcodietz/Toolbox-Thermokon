@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Downlink Generator JOY LoRaWAN</title>
+<link rel="stylesheet" href="../../style.css">
+<script src="../../assets/header.js"></script>
+</head>
+<body>
+
+<!-- ==== GENERATOR-SEITE: Sticky Downlink-Ausgabe oben, darunter die Parametertabellen ==== -->
+<div id="generator" class="page active">
+<div class="sticky-output">
+<h3 id="outputTitle" style="margin:0 0 6px 0;">Generierter Downlink</h3>
+<div id="output">(kein Wert gesetzt)</div>
+<button onclick="copyToClipboard()" id="copyBtn" class="action-btn-copy" disabled>In Zwischenablage kopieren</button>
+<button onclick="clearAllInputs()" id="clearBtn" class="action-btn-clear" style="margin-left: 10px;">Alle Werte löschen</button>
+<button onclick="saveToHistory()" id="saveBtn" class="btn-save-history" style="margin-left: 10px;" disabled>💾 Downlink in Historie speichern</button>
+<div class="history-bar">
+    <select id="historySelect" onchange="loadFromHistory()">
+        <option value="" id="historyPlaceholder">-- Gespeicherte Downlinks --</option>
+    </select>
+    <button onclick="exportHistory()" id="exportBtn" class="btn-export-history" disabled>📄 Export TXT</button>
+    <button onclick="deleteHistoryEntry()" id="deleteHistoryBtn" class="btn-delete-history" disabled>🗑️ Löschen</button>
+</div>
+</div>
+
+<div class="container">
+    <div id="topicContainer"></div>
+</div>
+</div>
+
+<script>
+// ==== HEADER ====
+renderHeader({
+    title: 'Downlink Generator JOY',
+    activeId: 'downlink-generator',
+    basePath: '../../',
+    showLanguage: true,
+});
+
+// ==== SPRACH-SYSTEM ====
+const translations = {
+    de: {
+        mainTitle: 'Downlink Generator JOY',
+        runtimeParam: 'Laufzeit-Parameter',
+        configParam: 'Konfigurationsparameter',
+        lorawanParam: 'LoRaWAN-Parameter',
+        paramHeader: 'Parameter - Hex - Modbus',
+        paramColumn: 'Bezeichnung Parameter',
+        valueHeader: 'Wert',
+        outputTitle: 'Generierter Downlink',
+        noValue: '(kein Wert gesetzt)',
+        copyBtn: 'In Zwischenablage kopieren',
+        copied: 'Downlink kopiert!',
+        clearBtn: 'Alle Werte löschen',
+        saveBtn: '💾 Downlink in Historie speichern',
+        saved: 'Downlink gespeichert!',
+        historyPlaceholder: '-- Gespeicherte Downlinks --',
+        exportBtn: '📄 Export TXT',
+        deleteHistoryBtn: '🗑️ Löschen',
+        exportFilename: 'Downlink_Historie',
+        descHeader: 'Beschreibung',
+        rangeHeader: 'Bereich',
+        protAddrHeader: 'Protokolladresse Modbus',
+        runtimeInfo: 'Laufzeit-Parameter werden zur Laufzeit des Geräts gesetzt und können jederzeit per Downlink überschrieben werden. Sie beeinflussen den aktuellen Betriebszustand (z. B. Sollwerte, Uhrzeit, Präsenz).',
+        configInfo: 'Konfigurationsparameter definieren die Grundeinstellungen des Geräts wie Sprache, Sensoroffsets, Display-Anzeige und Reglerverhalten. Änderungen werden dauerhaft gespeichert.',
+        lorawanInfo: 'LoRaWAN-Parameter steuern die Funkverbindung des Sensors, z. B. Sendeintervall (Heartbeat), Bestätigungsmodus und Datenrate. Diese Einstellungen beeinflussen Reichweite und Batterielebensdauer.',
+        tabGenerator: 'Downlink Generator',
+        langBtn: 'EN'
+    },
+    en: {
+        mainTitle: 'Downlink Generator JOY',
+        runtimeParam: 'Runtime Parameters',
+        configParam: 'Configuration Parameters',
+        lorawanParam: 'LoRaWAN Parameters',
+        paramHeader: 'Parameter - Hex - Modbus',
+        paramColumn: 'Parameter Description',
+        valueHeader: 'Value',
+        outputTitle: 'Generated Downlink',
+        noValue: '(no value set)',
+        copyBtn: 'Copy to Clipboard',
+        copied: 'Downlink copied!',
+        clearBtn: 'Clear All Values',
+        saveBtn: '💾 Save Downlink to History',
+        saved: 'Downlink saved!',
+        historyPlaceholder: '-- Saved Downlinks --',
+        exportBtn: '📄 Export TXT',
+        deleteHistoryBtn: '🗑️ Delete',
+        exportFilename: 'Downlink_History',
+        descHeader: 'Description',
+        rangeHeader: 'Range',
+        protAddrHeader: 'Protocol Address Modbus',
+        runtimeInfo: 'Runtime parameters are set during device operation and can be overwritten at any time via downlink. They affect the current operating state (e.g. setpoints, time, presence).',
+        configInfo: 'Configuration parameters define the basic device settings such as language, sensor offsets, display content and controller behavior. Changes are stored permanently.',
+        lorawanInfo: 'LoRaWAN parameters control the sensor\'s radio connection, e.g. transmission interval (heartbeat), confirmation mode and data rate. These settings affect range and battery life.',
+        tabGenerator: 'Downlink Generator',
+        langBtn: 'DE'
+    }
+};
+
+// ==== PARAMETER-DATEN (aus CSV geladen) ====
+let configParametersData  = [];
+let runtimeParametersData = [];
+let lorawanParametersData  = [];
+
+function parseParameterCSV(text) {
+    // Spalten der "Liste Parameter JOY LoRaWAN.csv":
+    // 0:#  1:Type  2:Category  3:DE  4:EN  5:name  6:hex  7:RegisterModbus  8:meta  9:info_de  10:info_en  11:range
+    const lines = text.trim().split('\n');
+    const result = { config: [], runtime: [], lorawan: [] };
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const cols = line.split(';');
+        if (cols.length < 10) continue;
+        const typeRaw = cols[1].trim().toLowerCase();
+        let section;
+        if (typeRaw === 'configuration') section = 'config';
+        else if (typeRaw === 'runtime') section = 'runtime';
+        else if (typeRaw.startsWith('lorawan')) section = 'lorawan';
+        else continue; // leere / unbekannte Zeilen überspringen
+        const metaRaw = cols[8].trim();
+        const meta = isNaN(metaRaw) ? metaRaw : parseInt(metaRaw);
+        const hexRaw = cols[6].trim();
+        const hex = hexRaw.padStart(4, '0').toUpperCase();
+        const obj = {
+            de:      cols[3].trim(),
+            en:      cols[4].trim(),
+            hex:     hex,
+            meta:    meta,
+            name:    cols[5].trim(),
+            info_de: cols[9].trim(),
+            info_en: cols[10].trim(),
+            range:   cols[11] ? cols[11].trim() : ''
+        };
+        if (result[section]) result[section].push(obj);
+    }
+    return result;
+}
+
+async function loadParametersFromCSV() {
+    const container = document.getElementById('topicContainer');
+    container.innerHTML = '<p style="padding:20px;color:#888;">&#8987; Lade Parameter&#8230;</p>';
+    try {
+        const resp = await fetch('../../assets/Liste Parameter JOY LoRaWAN.csv');
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const buffer = await resp.arrayBuffer();
+        const text = new TextDecoder('utf-8').decode(buffer);
+        const data = parseParameterCSV(text);
+        runtimeParametersData = data.runtime;
+        configParametersData  = data.config;
+        lorawanParametersData  = data.lorawan;
+        renderUI();
+    } catch (e) {
+        container.innerHTML =
+            '<p style="padding:20px;color:#d32f2f;">&#9888; Parameter-Datei konnte nicht geladen werden.<br>' +
+            '<small>Stelle sicher, dass die Seite über einen Webserver aufgerufen wird (nicht als file://).<br>' +
+            'Fehler: ' + e.message + '</small></p>';
+    }
+}
+
+function t(key) {
+    return translations[currentLanguage][key] || key;
+}
+
+function renderParameterSection(title, parameters, startIndex, infoKey) {
+    const container = document.getElementById("topicContainer");
+    
+    const sectionTitle = document.createElement("h3");
+    sectionTitle.className = "section-title";
+    const titleText = document.createElement("span");
+    titleText.textContent = title;
+    sectionTitle.appendChild(titleText);
+    
+    if (infoKey) {
+        const infoBtn = document.createElement("span");
+        infoBtn.className = "section-info-btn";
+        infoBtn.innerHTML = '<svg viewBox="0 0 20 24" width="12" height="14"><circle cx="10" cy="3.5" r="2.5"/><rect x="7.5" y="9" width="5" height="12" rx="1.5"/></svg>';
+        const infoText = t(infoKey);
+        infoBtn.addEventListener('mouseenter', function(e) { showTooltip(e, infoText); });
+        infoBtn.addEventListener('mouseleave', hideTooltip);
+        sectionTitle.appendChild(infoBtn);
+    }
+    container.appendChild(sectionTitle);
+    
+    const header = document.createElement("div");
+    header.className = "header";
+    header.innerHTML = `
+        <div class="header-param">${t('paramColumn')}</div>
+        <div style="width:180px;margin-left:5px;">${t('descHeader')}</div>
+        <div class="header-hex">Identifier Hex</div>
+        <div class="header-modbus">Registeradresse Modbus</div>
+        <div class="header-protaddr">${t('protAddrHeader')}</div>
+        <div class="header-value">${t('valueHeader')}</div>
+        <div class="header-range">${t('rangeHeader')}</div>
+        <div class="header-info"></div>
+    `;
+    container.appendChild(header);
+    
+    parameters.forEach((p, index) => {
+        const row = document.createElement("div");
+        row.className = "row";
+        const paramName = p[currentLanguage];
+        const tooltipText = currentLanguage === 'de' ? (p.info_de || '') : (p.info_en || '');
+        row.innerHTML = `
+            <div class="topic">${paramName}</div>
+            <div class="info-icon">
+                <span class="info-text-inline" onmouseenter="showTooltip(event, '${tooltipText.replace(/'/g, "&apos;")}')" onmouseleave="hideTooltip()">${tooltipText}</span>
+            </div>
+            <div class="hex-col">${p.hex}</div>
+            <div class="modbus-col">[${typeof p.meta === 'number' ? p.meta + 1 : p.meta}]</div>
+            <div class="protaddr-col">[${p.meta}]</div>
+            <div class="input">
+                <input type="number" min="-32768" max="32767" data-index="${startIndex + index}">
+            </div>
+            <div class="range-col">${p.range || ''}</div>
+            <div class="download-icon">
+                <button onclick="downloadParameter(${startIndex + index})" title="Download">&#x2193;</button>
+            </div>
+        `;
+        container.appendChild(row);
+    });
+}
+
+function renderUI() {
+    const container = document.getElementById("topicContainer");
+    container.innerHTML = '';
+    document.getElementById('mainTitle').textContent = t('mainTitle');
+    document.getElementById('outputTitle').textContent = t('outputTitle');
+    document.getElementById('copyBtn').textContent = t('copyBtn');
+    document.getElementById('clearBtn').textContent = t('clearBtn');
+    document.getElementById('saveBtn').innerHTML = t('saveBtn');
+    document.getElementById('historyPlaceholder').textContent = t('historyPlaceholder');
+    document.getElementById('exportBtn').innerHTML = t('exportBtn');
+    document.getElementById('deleteHistoryBtn').innerHTML = t('deleteHistoryBtn');
+    
+    document.getElementById('tab-generator') && (document.getElementById('tab-generator').textContent = t('tabGenerator'));
+    
+    renderParameterSection(t('runtimeParam'), runtimeParametersData, 0, 'runtimeInfo');
+    renderParameterSection(t('configParam'), configParametersData, runtimeParametersData.length, 'configInfo');
+    renderParameterSection(t('lorawanParam'), lorawanParametersData, runtimeParametersData.length + configParametersData.length, 'lorawanInfo');
+    document.getElementById("output").innerText = t('noValue');
+}
+
+window.onLanguageChange = renderUI;
+loadParametersFromCSV();
+
+function toHex(value) {
+    let num = Number(value);
+    if (num < 0) {
+        num = (num & 0xFFFF) >>> 0;
+    }
+    let hex = num.toString(16).toUpperCase();
+    return hex.padStart(4, "0");
+}
+
+function generateDownlink() {
+    let rawResult = "";
+    let htmlResult = "";
+    let count = 0;
+    const allParameters = [...runtimeParametersData, ...configParametersData, ...lorawanParametersData];
+
+    document.querySelectorAll("input").forEach(input => {
+        if (input.value !== "" && count < 10) {
+            const index = input.dataset.index;
+            const parameter = allParameters[index];
+            const valueHex = toHex(input.value);
+            rawResult += parameter.hex + valueHex;
+            htmlResult += '<span class="dl-pair"><span class="dl-id">' + parameter.hex + '</span><span class="dl-val">' + valueHex + '</span></span>';
+            count++;
+        }
+    });
+
+    const output = document.getElementById("output");
+    const isEmpty = !rawResult;
+    if (isEmpty) {
+        output.innerHTML = t('noValue');
+        output.dataset.raw = '';
+    } else {
+        output.innerHTML = htmlResult;
+        output.dataset.raw = rawResult;
+    }
+    document.getElementById("copyBtn").disabled = isEmpty;
+    document.getElementById("saveBtn").disabled = isEmpty;
+}
+
+function clearAllInputs() {
+    document.querySelectorAll('input').forEach(input => {
+        input.value = '';
+    });
+    generateDownlink();
+}
+
+document.addEventListener("input", function(e) {
+    if (e.target.tagName === 'INPUT' && e.target.type === 'number') {
+        let val = parseInt(e.target.value, 10);
+        if (!isNaN(val)) {
+            if (val > 32767) e.target.value = 32767;
+            else if (val < -32768) e.target.value = -32768;
+        }
+    }
+    generateDownlink();
+});
+
+const tooltip = document.createElement('div');
+tooltip.className = 'info-tooltip';
+document.body.appendChild(tooltip);
+
+function showTooltip(event, text) {
+    tooltip.textContent = text;
+    tooltip.classList.add('visible');
+    positionTooltip(event);
+}
+
+function hideTooltip() {
+    tooltip.classList.remove('visible');
+}
+
+document.addEventListener('mousemove', function(e) {
+    if (tooltip.classList.contains('visible')) {
+        positionTooltip(e);
+    }
+});
+
+function positionTooltip(e) {
+    const offset = 12;
+    const vpW = window.innerWidth;
+    const vpH = window.innerHeight;
+    let left = e.clientX + offset;
+    let top = e.clientY + offset;
+    const rect = tooltip.getBoundingClientRect();
+    if (left + rect.width > vpW - 10) left = e.clientX - rect.width - offset;
+    if (top + rect.height > vpH - 10) top = e.clientY - rect.height - offset;
+    if (left < 5) left = 5;
+    if (top < 5) top = 5;
+    tooltip.style.maxWidth = (vpW - 20) + 'px';
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+}
+
+function downloadParameter(index) {
+    const a = document.createElement('a');
+    a.href = '../../assets/Joy-RS485_Modbus_Handbuch_de.pdf';
+    a.target = '_blank';
+    a.click();
+}
+
+function copyToClipboard() {
+    const raw = document.getElementById("output").dataset.raw;
+    const text = raw || document.getElementById("output").innerText;
+    navigator.clipboard.writeText(text);
+    alert(t('copied'));
+}
+
+const HISTORY_KEY = 'downlinkHistory';
+
+function collectFieldValues() {
+    const values = {};
+    document.querySelectorAll('input[data-index]').forEach(input => {
+        if (input.value !== '') {
+            values[input.dataset.index] = input.value;
+        }
+    });
+    return values;
+}
+
+function restoreFieldValues(values) {
+    document.querySelectorAll('input[data-index]').forEach(input => {
+        input.value = values[input.dataset.index] || '';
+    });
+    generateDownlink();
+}
+
+function getHistory() {
+    try {
+        return JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function setHistory(history) {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+}
+
+function saveToHistory() {
+    const raw = document.getElementById("output").dataset.raw;
+    if (!raw) return;
+
+    const allParameters = [...runtimeParametersData, ...configParametersData, ...lorawanParametersData];
+    const fieldValues = collectFieldValues();
+
+    const labels = Object.keys(fieldValues).map(idx => {
+        const p = allParameters[idx];
+        const name = p ? p[currentLanguage] || p.de : 'Param ' + idx;
+        return name + '=' + fieldValues[idx];
+    }).join(', ');
+
+    const now = new Date();
+    const timestamp = now.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    const entry = { timestamp, raw, fieldValues, labels };
+
+    let history = getHistory();
+    history.unshift(entry);
+    if (history.length > 10) history = history.slice(0, 10);
+    setHistory(history);
+
+    renderHistoryDropdown();
+    alert(t('saved'));
+}
+
+function renderHistoryDropdown() {
+    const select = document.getElementById('historySelect');
+    while (select.options.length > 1) select.remove(1);
+    select.options[0].textContent = t('historyPlaceholder');
+
+    const history = getHistory();
+    history.forEach((entry, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        const formattedHex = entry.raw.match(/.{1,8}/g).join(' | ');
+        const shortHex = formattedHex.length > 40 ? formattedHex.substring(0, 40) + '...' : formattedHex;
+        opt.textContent = entry.timestamp + ' | ' + shortHex;
+        opt.title = entry.labels;
+        select.appendChild(opt);
+    });
+
+    document.getElementById('exportBtn').disabled = history.length === 0;
+    document.getElementById('deleteHistoryBtn').disabled = true;
+    select.value = '';
+}
+
+function loadFromHistory() {
+    const select = document.getElementById('historySelect');
+    const idx = select.value;
+    document.getElementById('deleteHistoryBtn').disabled = (idx === '');
+    if (idx === '') return;
+
+    const history = getHistory();
+    const entry = history[parseInt(idx)];
+    if (!entry) return;
+
+    restoreFieldValues(entry.fieldValues);
+}
+
+function deleteHistoryEntry() {
+    const select = document.getElementById('historySelect');
+    const idx = select.value;
+    if (idx === '') return;
+
+    let history = getHistory();
+    history.splice(parseInt(idx), 1);
+    setHistory(history);
+    renderHistoryDropdown();
+}
+
+function exportHistory() {
+    const history = getHistory();
+    if (history.length === 0) return;
+
+    const allParameters = [...runtimeParametersData, ...configParametersData, ...lorawanParametersData];
+    let txt = '========================================\n';
+    txt += '  Downlink Historie - Export\n';
+    txt += '  ' + new Date().toLocaleString('de-DE') + '\n';
+    txt += '========================================\n\n';
+
+    history.forEach((entry, idx) => {
+        txt += '--- Downlink #' + (idx + 1) + ' ---\n';
+        txt += 'Zeitstempel: ' + entry.timestamp + '\n';
+        txt += 'Hex-String:  ' + entry.raw + '\n';
+        txt += 'Parameter:\n';
+        if (entry.fieldValues) {
+            Object.keys(entry.fieldValues).forEach(fieldIdx => {
+                const p = allParameters[fieldIdx];
+                const name = p ? (p.de + ' / ' + p.en) : 'Parameter ' + fieldIdx;
+                const hex = p ? p.hex : '????';
+                txt += '  - ' + name + ' [0x' + hex + '] = ' + entry.fieldValues[fieldIdx] + '\n';
+            });
+        }
+        txt += '\n';
+    });
+
+    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = t('exportFilename') + '_' + new Date().toISOString().slice(0, 10) + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+renderHistoryDropdown();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Dashboard - Thermokon</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="assets/header.js"></script>
+</head>
+<body>
+
+<!-- ==== DASHBOARD-SEITE: Tool-Karten mit Links ==== -->
+<div id="dashboard" class="page active">
+    <div class="dashboard-container">
+        <div class="dashboard-title" id="dashboardTitle">IoT Tools & Generatoren</div>
+        <div class="dashboard-subtitle" id="dashboardSubtitle">Wählen Sie ein Tool aus, um zu beginnen</div>
+        
+        <div class="tools-grid">
+
+            <!-- Kachel 1: Downlink Generator -->
+            <a href="iot-apps/downlink-generator/downlink-generator.html" class="tool-card">
+                <span class="tool-icon">⚙️</span>
+                <div class="tool-title" id="card1-title">Downlink Generator</div>
+                <div class="tool-description" id="card1-desc">
+                    Erstelle LoRaWAN Downlink-Befehle für den Thermokon JOY Sensor.
+                </div>
+            </a>
+
+            <!-- Kachel 2: LoRaWAN Decoder -->
+            <a href="iot-apps/lorawan-decoder/lorawan-decoder.html" class="tool-card">
+                <span class="tool-icon">📡</span>
+                <div class="tool-title" id="card2-title">LoRaWAN Decoder</div>
+                <div class="tool-description" id="card2-desc">
+                    Dekodiere und teste LoRaWAN Uplink-Payloads von verschiedenen Sensoren.
+                </div>
+            </a>
+
+            <!-- Kachel 3: KI-Assistent (Gemini) -->
+            <a href="iot-apps/gemini-chat/gemini-chat.html" class="tool-card">
+                <span class="tool-icon">🤖</span>
+                <div class="tool-title" id="card3-title">KI-Assistent</div>
+                <div class="tool-description" id="card3-desc">
+                    Stelle Fragen an den Thermokon KI-Assistenten – powered by Google Gemini.
+                </div>
+            </a>
+
+            <!-- Kachel 4: Gerätekonfigurator -->
+            <div class="tool-card tool-card--coming-soon">
+                <span class="tool-icon">🔧</span>
+                <div class="tool-title" id="card4-title">Gerätekonfigurator</div>
+                <div class="tool-description" id="card4-desc">
+                    Konfiguriere Thermokon-Geräte über eine geführte Oberfläche.
+                </div>
+            </div>
+
+            <!-- Kachel 5: Firmware-Updater -->
+            <div class="tool-card tool-card--coming-soon">
+                <span class="tool-icon">🔄</span>
+                <div class="tool-title" id="card5-title">Firmware-Updater</div>
+                <div class="tool-description" id="card5-desc">
+                    Verwalte und aktualisiere Firmware-Versionen deiner Geräte.
+                </div>
+            </div>
+
+            <!-- Kachel 6: Alarm-Manager -->
+            <div class="tool-card tool-card--coming-soon">
+                <span class="tool-icon">🔔</span>
+                <div class="tool-title" id="card6-title">Alarm-Manager</div>
+                <div class="tool-description" id="card6-desc">
+                    Definiere Grenzwerte und verwalte Alarme für Sensormesswerte.
+                </div>
+            </div>
+
+            <!-- Kachel 7: Netzwerk-Planer -->
+            <div class="tool-card tool-card--coming-soon">
+                <span class="tool-icon">🗺️</span>
+                <div class="tool-title" id="card7-title">Netzwerk-Planer</div>
+                <div class="tool-description" id="card7-desc">
+                    Plane LoRaWAN-Netzwerkabdeckung und Gateway-Standorte.
+                </div>
+            </div>
+
+            <!-- Kachel 8: Dokumentations-Hub -->
+            <div class="tool-card tool-card--coming-soon">
+                <span class="tool-icon">📄</span>
+                <div class="tool-title" id="card8-title">Dokumentations-Hub</div>
+                <div class="tool-description" id="card8-desc">
+                    Zugriff auf Datenblätter, Handbücher und technische Referenzen.
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+// ==== HEADER ====
+renderHeader({
+    title: 'IoT Dashboard',
+    activeId: 'dashboard',
+    basePath: '',
+    showLanguage: true,
+});
+
+// ==== SPRACH-SYSTEM ====
+const translations = {
+    de: {
+        mainTitle: 'IoT Dashboard',
+        dashboardTitle: 'IoT Tools & Generatoren',
+        dashboardSubtitle: 'Wählen Sie ein Tool aus, um zu beginnen',
+        upcoming: 'Demnächst verfügbar',
+        card1Title: 'Downlink Generator',
+        card1Desc: 'Erstelle LoRaWAN Downlink-Befehle für den Thermokon JOY Sensor.',
+        card2Title: 'LoRaWAN Decoder',
+        card2Desc: 'Dekodiere und teste LoRaWAN Uplink-Payloads von verschiedenen Sensoren.',
+        card3Title: 'KI-Assistent',
+        card3Desc: 'Stelle Fragen an den Thermokon KI-Assistenten – powered by Google Gemini.',
+        card4Title: 'Gerätekonfigurator',
+        card4Desc: 'Konfiguriere Thermokon-Geräte über eine geführte Oberfläche.',
+        card5Title: 'Firmware-Updater',
+        card5Desc: 'Verwalte und aktualisiere Firmware-Versionen deiner Geräte.',
+        card6Title: 'Alarm-Manager',
+        card6Desc: 'Definiere Grenzwerte und verwalte Alarme für Sensormesswerte.',
+        card7Title: 'Netzwerk-Planer',
+        card7Desc: 'Plane LoRaWAN-Netzwerkabdeckung und Gateway-Standorte.',
+        card8Title: 'Dokumentations-Hub',
+        card8Desc: 'Zugriff auf Datenblätter, Handbücher und technische Referenzen.',
+    },
+    en: {
+        mainTitle: 'IoT Dashboard',
+        dashboardTitle: 'IoT Tools & Generators',
+        dashboardSubtitle: 'Select a tool to get started',
+        upcoming: 'Coming soon',
+        card1Title: 'Downlink Generator',
+        card1Desc: 'Create LoRaWAN downlink commands for the Thermokon JOY sensor.',
+        card2Title: 'LoRaWAN Decoder',
+        card2Desc: 'Decode and test LoRaWAN uplink payloads from various sensors.',
+        card3Title: 'AI Assistant',
+        card3Desc: 'Ask the Thermokon AI Assistant questions – powered by Google Gemini.',
+        card4Title: 'Device Configurator',
+        card4Desc: 'Configure Thermokon devices through a guided interface.',
+        card5Title: 'Firmware Updater',
+        card5Desc: 'Manage and update firmware versions of your devices.',
+        card6Title: 'Alarm Manager',
+        card6Desc: 'Define thresholds and manage alarms for sensor measurements.',
+        card7Title: 'Network Planner',
+        card7Desc: 'Plan LoRaWAN network coverage and gateway locations.',
+        card8Title: 'Documentation Hub',
+        card8Desc: 'Access datasheets, manuals, and technical references.',
+    }
+};
+
+function t(key) {
+    return translations[currentLanguage][key] || key;
+}
+
+function updateUI() {
+    // Header
+    document.getElementById('mainTitle').textContent = t('mainTitle');
+
+    // Dashboard header
+    document.getElementById('dashboardTitle').textContent = t('dashboardTitle');
+    document.getElementById('dashboardSubtitle').textContent = t('dashboardSubtitle');
+
+    // Tool cards
+    for (let i = 1; i <= 8; i++) {
+        document.getElementById('card' + i + '-title').textContent = t('card' + i + 'Title');
+        document.getElementById('card' + i + '-desc').textContent  = t('card' + i + 'Desc');
+    }
+}
+
+// Initiales Rendering
+window.onLanguageChange = updateUI;
+updateUI();
+</script>
+
+</body>
+</html>
