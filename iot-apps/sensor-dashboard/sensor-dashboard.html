@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Dashboard – Thermokon</title>
+
+    <!-- Chart.js für historische Verlaufsgraphen -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+    <style>
+        /* ===== RESET & BASE ===== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:          #f0f2f5;
+            --card:        #ffffff;
+            --primary:     #e63012;   /* Thermokon Rot */
+            --primary-dk:  #b8220d;
+            --accent:      #2563eb;
+            --ok:          #16a34a;
+            --warn:        #d97706;
+            --err:         #dc2626;
+            --text:        #1e293b;
+            --muted:       #64748b;
+            --border:      #e2e8f0;
+            --radius:      12px;
+            --shadow:      0 2px 12px rgba(0,0,0,.08);
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 15px;
+        }
+
+        /* ===== WRAPPER – scrollt innerhalb des Node-RED iFrames ===== */
+        .dashboard-wrapper {
+            min-height: 100%;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ===== HEADER ===== */
+        .dash-header {
+            background: var(--card);
+            border-bottom: 3px solid var(--primary);
+            padding: 14px 22px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            box-shadow: var(--shadow);
+        }
+        .dash-header .brand {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -.2px;
+        }
+        .dash-header .subtitle {
+            color: var(--muted);
+            font-size: .85rem;
+        }
+        .dash-header .spacer { flex: 1; }
+        .conn-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: .82rem;
+            font-weight: 600;
+            padding: 5px 12px;
+            border-radius: 20px;
+            background: #f1f5f9;
+        }
+        .conn-badge .dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: var(--muted);
+            transition: background .3s;
+        }
+        .conn-badge.connected .dot  { background: var(--ok); box-shadow: 0 0 0 3px #bbf7d0; }
+        .conn-badge.error     .dot  { background: var(--err); box-shadow: 0 0 0 3px #fecaca; }
+
+        #lastUpdate {
+            font-size: .78rem;
+            color: var(--muted);
+        }
+
+        /* ===== MAIN CONTENT ===== */
+        .dash-content {
+            flex: 1;
+            padding: 18px 20px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        /* ===== DEVICE BAR ===== */
+        .device-bar {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--primary);
+        }
+        .device-bar .dev-name {
+            font-weight: 700;
+            font-size: 1rem;
+        }
+        .device-bar .dev-eui {
+            font-size: .78rem;
+            color: var(--muted);
+            font-family: monospace;
+        }
+        .tag {
+            font-size: .75rem;
+            padding: 3px 9px;
+            border-radius: 12px;
+            background: #eff6ff;
+            color: var(--accent);
+            font-weight: 600;
+        }
+        .tag.ok   { background: #f0fdf4; color: var(--ok); }
+        .tag.warn { background: #fffbeb; color: var(--warn); }
+        .tag.err  { background: #fef2f2; color: var(--err); }
+
+        /* ===== KPI-KARTEN (Werte) ===== */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 14px;
+        }
+
+        .kpi-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 16px 18px 14px;
+            box-shadow: var(--shadow);
+            border-top: 4px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: transform .15s, box-shadow .15s;
+            position: relative;
+        }
+        .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 6px 22px rgba(0,0,0,.13); }
+
+        .kpi-card.ok   { border-top-color: var(--ok); }
+        .kpi-card.warn { border-top-color: var(--warn); }
+        .kpi-card.err  { border-top-color: var(--err); }
+
+        .kpi-icon {
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+        .kpi-label {
+            font-size: .75rem;
+            color: var(--muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
+        .kpi-value {
+            font-size: 1.85rem;
+            font-weight: 700;
+            line-height: 1.1;
+            color: var(--text);
+        }
+        .kpi-unit {
+            font-size: .82rem;
+            color: var(--muted);
+            font-weight: 400;
+            margin-left: 3px;
+        }
+        .kpi-trend {
+            font-size: .75rem;
+            color: var(--muted);
+        }
+        .kpi-trend.up   { color: var(--warn); }
+        .kpi-trend.down { color: var(--accent); }
+
+        /* ===== SIGNALQUALITÄT (Balken) ===== */
+        .signal-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 18px;
+        }
+        .signal-bars span {
+            width: 5px;
+            border-radius: 2px;
+            background: var(--border);
+            transition: background .3s;
+        }
+        .signal-bars span:nth-child(1) { height: 30%; }
+        .signal-bars span:nth-child(2) { height: 55%; }
+        .signal-bars span:nth-child(3) { height: 80%; }
+        .signal-bars span:nth-child(4) { height: 100%; }
+
+        .signal-bars.s1 span:nth-child(1) { background: var(--err); }
+        .signal-bars.s2 span:nth-child(1),
+        .signal-bars.s2 span:nth-child(2) { background: var(--warn); }
+        .signal-bars.s3 span:nth-child(1),
+        .signal-bars.s3 span:nth-child(2),
+        .signal-bars.s3 span:nth-child(3) { background: var(--ok); }
+        .signal-bars.s4 span { background: var(--ok); }
+
+        /* ===== BATTERIE BALKEN ===== */
+        .battery-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: .78rem;
+            color: var(--muted);
+        }
+        .battery-body {
+            width: 38px; height: 14px;
+            border: 2px solid var(--muted);
+            border-radius: 3px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 2px;
+        }
+        .battery-body::after {
+            content: '';
+            position: absolute;
+            right: -5px; top: 50%;
+            transform: translateY(-50%);
+            width: 4px; height: 6px;
+            background: var(--muted);
+            border-radius: 0 2px 2px 0;
+        }
+        .battery-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: var(--ok);
+            transition: width .5s, background .5s;
+        }
+
+        /* ===== CHARTS ===== */
+        .charts-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 14px;
+        }
+
+        .chart-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 18px 18px 14px;
+            box-shadow: var(--shadow);
+        }
+        .chart-card .chart-title {
+            font-size: .85rem;
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-bottom: 12px;
+        }
+        .chart-card canvas {
+            max-height: 180px;
+        }
+
+        /* ===== ALARM-LOG ===== */
+        .alarm-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 16px 18px;
+            box-shadow: var(--shadow);
+        }
+        .alarm-card .section-title {
+            font-size: .85rem;
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .alarm-log {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .alarm-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 10px;
+            border-radius: 8px;
+            font-size: .82rem;
+            background: #f8fafc;
+        }
+        .alarm-item.warn { background: #fffbeb; }
+        .alarm-item.err  { background: #fef2f2; }
+        .alarm-item .al-icon { font-size: 1rem; }
+        .alarm-item .al-time { color: var(--muted); font-size: .75rem; min-width: 80px; }
+        .alarm-item .al-msg  { flex: 1; }
+
+        .no-alarms {
+            font-size: .85rem;
+            color: var(--muted);
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        /* ===== DEMO-HINWEIS ===== */
+        .demo-notice {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: .8rem;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .demo-notice.hidden { display: none; }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 480px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .dash-content { padding: 12px 10px 20px; }
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard-wrapper">
+
+    <!-- ===== HEADER ===== -->
+    <header class="dash-header">
+        <div>
+            <div class="brand">📡 Thermokon – Sensor Dashboard</div>
+            <div class="subtitle">LoRaWAN Echtzeit-Monitoring</div>
+        </div>
+        <div class="spacer"></div>
+        <div id="connBadge" class="conn-badge">
+            <span class="dot"></span>
+            <span id="connText">Warte auf Daten…</span>
+        </div>
+        <div id="lastUpdate"></div>
+    </header>
+
+    <!-- ===== CONTENT ===== -->
+    <main class="dash-content">
+
+        <!-- Demo-Hinweis (wird ausgeblendet, sobald echte Daten eintreffen) -->
+        <div class="demo-notice" id="demoNotice">
+            ℹ️ <strong>Demo-Modus:</strong> Es werden simulierte Zufallsdaten angezeigt.
+            Verbinde den Node-RED <code>ui_template</code>-Node mit einem Datenstrom, um echte Sensorwerte zu empfangen.
+        </div>
+
+        <!-- Geräteleiste -->
+        <div class="device-bar">
+            <div>
+                <div class="dev-name" id="devName">Thermokon JOY &nbsp;<span class="tag ok" id="devStatus">Online</span></div>
+                <div class="dev-eui" id="devEui">DevEUI: —</div>
+            </div>
+            <div class="spacer"></div>
+            <div id="gwInfo" style="font-size:.8rem;color:var(--muted)">Gateway: —</div>
+        </div>
+
+        <!-- KPI-Karten -->
+        <div class="kpi-grid">
+
+            <!-- Temperatur -->
+            <div class="kpi-card" id="cardTemp">
+                <span class="kpi-icon">🌡️</span>
+                <div class="kpi-label">Temperatur</div>
+                <div class="kpi-value" id="valTemp">—<span class="kpi-unit">°C</span></div>
+                <div class="kpi-trend" id="trendTemp">–</div>
+            </div>
+
+            <!-- Feuchte -->
+            <div class="kpi-card" id="cardHum">
+                <span class="kpi-icon">💧</span>
+                <div class="kpi-label">Rel. Feuchte</div>
+                <div class="kpi-value" id="valHum">—<span class="kpi-unit">%rF</span></div>
+                <div class="kpi-trend" id="trendHum">–</div>
+            </div>
+
+            <!-- CO₂ -->
+            <div class="kpi-card" id="cardCo2">
+                <span class="kpi-icon">🍃</span>
+                <div class="kpi-label">CO₂</div>
+                <div class="kpi-value" id="valCo2">—<span class="kpi-unit">ppm</span></div>
+                <div class="kpi-trend" id="trendCo2">–</div>
+            </div>
+
+            <!-- VOC / Luftqualität -->
+            <div class="kpi-card" id="cardVoc">
+                <span class="kpi-icon">🌬️</span>
+                <div class="kpi-label">Luftqualität</div>
+                <div class="kpi-value" id="valVoc">—<span class="kpi-unit">IAQ</span></div>
+                <div class="kpi-trend" id="trendVoc">–</div>
+            </div>
+
+            <!-- Luftdruck -->
+            <div class="kpi-card" id="cardPres">
+                <span class="kpi-icon">🔵</span>
+                <div class="kpi-label">Luftdruck</div>
+                <div class="kpi-value" id="valPres">—<span class="kpi-unit">hPa</span></div>
+                <div class="kpi-trend" id="trendPres">–</div>
+            </div>
+
+            <!-- Helligkeit -->
+            <div class="kpi-card" id="cardLux">
+                <span class="kpi-icon">☀️</span>
+                <div class="kpi-label">Helligkeit</div>
+                <div class="kpi-value" id="valLux">—<span class="kpi-unit">lux</span></div>
+                <div class="kpi-trend" id="trendLux">–</div>
+            </div>
+
+            <!-- RSSI -->
+            <div class="kpi-card" id="cardRssi">
+                <span class="kpi-icon">📶</span>
+                <div class="kpi-label">RSSI</div>
+                <div class="kpi-value" id="valRssi">—<span class="kpi-unit">dBm</span></div>
+                <div class="signal-bars" id="signalBars">
+                    <span></span><span></span><span></span><span></span>
+                </div>
+            </div>
+
+            <!-- Batterie -->
+            <div class="kpi-card" id="cardBatt">
+                <span class="kpi-icon">🔋</span>
+                <div class="kpi-label">Batterie</div>
+                <div class="kpi-value" id="valBatt">—<span class="kpi-unit">V</span></div>
+                <div class="battery-wrap">
+                    <div class="battery-body">
+                        <div class="battery-fill" id="battFill" style="width:0%"></div>
+                    </div>
+                    <span id="battPct">–</span>
+                </div>
+            </div>
+
+        </div><!-- /kpi-grid -->
+
+        <!-- Verlaufsgraphen -->
+        <div class="charts-row">
+            <div class="chart-card">
+                <div class="chart-title">🌡️ Temperatur – Verlauf (letzte 30 Werte)</div>
+                <canvas id="chartTemp"></canvas>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">💧 Feuchte – Verlauf (letzte 30 Werte)</div>
+                <canvas id="chartHum"></canvas>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">🍃 CO₂ – Verlauf (letzte 30 Werte)</div>
+                <canvas id="chartCo2"></canvas>
+            </div>
+        </div>
+
+        <!-- Alarm-Log -->
+        <div class="alarm-card">
+            <div class="section-title">
+                🔔 Alarm-Log
+                <span class="tag" id="alarmCount">0 Einträge</span>
+                <div style="flex:1"></div>
+                <button onclick="clearAlarms()"
+                    style="font-size:.75rem;padding:3px 10px;border:1px solid var(--border);
+                           background:white;border-radius:8px;cursor:pointer;color:var(--muted)">
+                    Leeren
+                </button>
+            </div>
+            <div class="alarm-log" id="alarmLog">
+                <div class="no-alarms">Keine Alarme – alles im grünen Bereich ✅</div>
+            </div>
+        </div>
+
+    </main>
+</div><!-- /dashboard-wrapper -->
+
+<script>
+/*
+ * ═══════════════════════════════════════════════════════════════════
+ *  THERMOKON SENSOR DASHBOARD  –  Node-RED ui_template kompatibel
+ * ═══════════════════════════════════════════════════════════════════
+ *
+ *  Integration in Node-RED:
+ *  ─────────────────────────
+ *  1. Dashboard-Node "ui_template" anlegen
+ *  2. Den gesamten Inhalt dieser Datei in den Template-Editor einfügen
+ *     (oder via HTTP-Node als iframe einbinden)
+ *  3. Erwartetes msg.payload-Format:
+ *
+ *     {
+ *       "deviceName":  "Sensor 01",
+ *       "devEUI":      "A81758FFFE050D2C",
+ *       "gateway":     "GW-Dach",
+ *       "temperature": 22.4,       // °C
+ *       "humidity":    46.3,       // %rF
+ *       "co2":         910,        // ppm
+ *       "voc":         75,         // IAQ 0-500
+ *       "pressure":    1013.2,     // hPa
+ *       "lux":         340,        // lux
+ *       "rssi":        -82,        // dBm
+ *       "battery":     3.24        // V  (3.0–3.6 V)
+ *     }
+ *
+ *  Node-RED scope-Anbindung (AngularJS ui_template):
+ *  ─────────────────────────
+ *  Am Ende des <script>-Blocks ist der scope.$watch-Hook bereits
+ *  vorbereitet. Node-RED injiziert automatisch das 'scope'-Objekt.
+ * ═══════════════════════════════════════════════════════════════════
+ */
+
+// ── Grenzwerte für Ampel-Färbung ──────────────────────────────────
+const LIMITS = {
+    temperature: { warn: [18, 26],  err: [15, 30]  },
+    humidity:    { warn: [30, 60],  err: [20, 70]  },
+    co2:         { warn: 1000,      err: 1500       },
+    voc:         { warn: 150,       err: 300        },
+    battery:     { warn: 3.1,       err: 3.0        },
+    rssi:        { warn: -100,      err: -110       },
+};
+
+// ── Historie für Charts (max. 30 Werte) ───────────────────────────
+const MAX_HIST = 30;
+const history = { labels: [], temp: [], hum: [], co2: [] };
+
+// ── Chart-Initialisierung ─────────────────────────────────────────
+const chartDefaults = (label, color) => ({
+    type: 'line',
+    data: {
+        labels: history.labels,
+        datasets: [{
+            label,
+            data: [],
+            borderColor: color,
+            backgroundColor: color + '22',
+            borderWidth: 2,
+            pointRadius: 2,
+            fill: true,
+            tension: 0.35,
+        }]
+    },
+    options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            x: { ticks: { maxTicksLimit: 6, font: { size: 10 }, color: '#94a3b8' }, grid: { color: '#f1f5f9' } },
+            y: { ticks: { font: { size: 10 }, color: '#94a3b8' }, grid: { color: '#f1f5f9' } }
+        }
+    }
+});
+
+const cTemp = new Chart(document.getElementById('chartTemp'), chartDefaults('Temperatur °C', '#e63012'));
+const cHum  = new Chart(document.getElementById('chartHum'),  chartDefaults('Feuchte %rF',   '#2563eb'));
+const cCo2  = new Chart(document.getElementById('chartCo2'),  chartDefaults('CO₂ ppm',        '#16a34a'));
+
+// ── Alarme ────────────────────────────────────────────────────────
+const alarms = [];
+
+function clearAlarms() {
+    alarms.length = 0;
+    renderAlarms();
+}
+
+function addAlarm(level, msg) {
+    const time = new Date().toLocaleTimeString('de-DE');
+    alarms.unshift({ level, msg, time });
+    if (alarms.length > 50) alarms.pop();
+    renderAlarms();
+}
+
+function renderAlarms() {
+    const log = document.getElementById('alarmLog');
+    document.getElementById('alarmCount').textContent =
+        alarms.length ? `${alarms.length} Einträge` : '0 Einträge';
+    if (!alarms.length) {
+        log.innerHTML = '<div class="no-alarms">Keine Alarme – alles im grünen Bereich ✅</div>';
+        return;
+    }
+    log.innerHTML = alarms.map(a => `
+        <div class="alarm-item ${a.level}">
+            <span class="al-icon">${a.level === 'err' ? '🔴' : '🟡'}</span>
+            <span class="al-time">${a.time}</span>
+            <span class="al-msg">${a.msg}</span>
+        </div>`).join('');
+}
+
+// ── Status-Ampel für eine Karte ───────────────────────────────────
+function cardStatus(key, val) {
+    if (val === null || val === undefined) return '';
+    const lim = LIMITS[key];
+    if (!lim) return 'ok';
+    if (key === 'co2' || key === 'voc') {
+        if (val >= lim.err)  return 'err';
+        if (val >= lim.warn) return 'warn';
+        return 'ok';
+    }
+    if (key === 'battery' || key === 'rssi') {
+        if (val <= lim.err)  return 'err';
+        if (val <= lim.warn) return 'warn';
+        return 'ok';
+    }
+    // Bereichscheck (temperature, humidity)
+    const [lo_w, hi_w] = lim.warn;
+    const [lo_e, hi_e] = lim.err;
+    if (val < lo_e || val > hi_e) return 'err';
+    if (val < lo_w || val > hi_w) return 'warn';
+    return 'ok';
+}
+
+function setCardClass(cardId, status) {
+    const el = document.getElementById(cardId);
+    if (!el) return;
+    el.classList.remove('ok', 'warn', 'err');
+    if (status) el.classList.add(status);
+}
+
+// ── Trendsymbol berechnen ─────────────────────────────────────────
+const lastVals = {};
+function trend(key, val) {
+    const prev = lastVals[key];
+    lastVals[key] = val;
+    if (prev === undefined) return '–';
+    const diff = val - prev;
+    if (Math.abs(diff) < 0.05) return '↔ stabil';
+    return diff > 0 ? `▲ +${diff.toFixed(1)}` : `▼ ${diff.toFixed(1)}`;
+}
+
+function setTrend(id, key, val) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const t = trend(key, val);
+    el.textContent = t;
+    el.className = 'kpi-trend' + (t.startsWith('▲') ? ' up' : t.startsWith('▼') ? ' down' : '');
+}
+
+// ── Signalstärke-Balken ───────────────────────────────────────────
+function setSignal(rssi) {
+    const bars = document.getElementById('signalBars');
+    if (!bars) return;
+    bars.className = 'signal-bars';
+    if (rssi >= -70)       bars.classList.add('s4');
+    else if (rssi >= -85)  bars.classList.add('s3');
+    else if (rssi >= -100) bars.classList.add('s2');
+    else                   bars.classList.add('s1');
+}
+
+// ── Batterie-Balken ───────────────────────────────────────────────
+function setBattery(volt) {
+    const MIN_V = 2.9, MAX_V = 3.6;
+    const pct = Math.max(0, Math.min(100, ((volt - MIN_V) / (MAX_V - MIN_V)) * 100));
+    const fill = document.getElementById('battFill');
+    const pctEl = document.getElementById('battPct');
+    if (fill) {
+        fill.style.width = pct.toFixed(0) + '%';
+        fill.style.background = pct < 15 ? 'var(--err)' : pct < 35 ? 'var(--warn)' : 'var(--ok)';
+    }
+    if (pctEl) pctEl.textContent = pct.toFixed(0) + '%';
+}
+
+// ── Charts aktualisieren ──────────────────────────────────────────
+function pushHistory(label, temp, hum, co2) {
+    history.labels.push(label);
+    history.temp.push(temp);
+    history.hum.push(hum);
+    history.co2.push(co2);
+    if (history.labels.length > MAX_HIST) {
+        ['labels', 'temp', 'hum', 'co2'].forEach(k => history[k].shift());
+    }
+    cTemp.data.datasets[0].data = history.temp;
+    cHum.data.datasets[0].data  = history.hum;
+    cCo2.data.datasets[0].data  = history.co2;
+    cTemp.data.labels = cHum.data.labels = cCo2.data.labels = history.labels;
+    cTemp.update();
+    cHum.update();
+    cCo2.update();
+}
+
+// ── Hauptfunktion: Daten ins Dashboard schreiben ─────────────────
+function applyData(d) {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    // Demo-Hinweis ausblenden
+    document.getElementById('demoNotice').classList.add('hidden');
+
+    // Verbindungs-Badge
+    const badge = document.getElementById('connBadge');
+    badge.className = 'conn-badge connected';
+    document.getElementById('connText').textContent = 'Verbunden';
+    document.getElementById('lastUpdate').textContent = 'Letzte Aktualisierung: ' + timeStr;
+
+    // Geräteleiste
+    if (d.deviceName) document.getElementById('devName').childNodes[0].textContent = d.deviceName + ' ';
+    if (d.devEUI)     document.getElementById('devEui').textContent = 'DevEUI: ' + d.devEUI;
+    if (d.gateway)    document.getElementById('gwInfo').textContent  = 'Gateway: ' + d.gateway;
+
+    // Hilfsfunktion: Wert setzen + Karte färben + Trend
+    function setValue(valId, cardId, key, val, digits, trendId) {
+        const el = document.getElementById(valId);
+        if (!el) return;
+        if (val !== undefined && val !== null) {
+            // Nur die Zahl (ohne Unit-Span) aktualisieren
+            const unit = el.querySelector('.kpi-unit');
+            el.childNodes[0].textContent = Number(val).toFixed(digits);
+            if (unit) el.appendChild(unit);
+            const st = cardStatus(key, val);
+            setCardClass(cardId, st);
+            if (trendId) setTrend(trendId, key, val);
+            // Alarm
+            if (st === 'err')  addAlarm('err',  `${key}: ${Number(val).toFixed(digits)} – Grenzwert überschritten`);
+            else if (st === 'warn') addAlarm('warn', `${key}: ${Number(val).toFixed(digits)} – Warnschwelle`);
+        }
+    }
+
+    setValue('valTemp', 'cardTemp', 'temperature', d.temperature, 1, 'trendTemp');
+    setValue('valHum',  'cardHum',  'humidity',    d.humidity,    1, 'trendHum');
+    setValue('valCo2',  'cardCo2',  'co2',         d.co2,         0, 'trendCo2');
+    setValue('valVoc',  'cardVoc',  'voc',         d.voc,         0, 'trendVoc');
+    setValue('valPres', 'cardPres', null,           d.pressure,   1, 'trendPres');
+    setValue('valLux',  'cardLux',  null,           d.lux,         0, 'trendLux');
+
+    if (d.rssi !== undefined) {
+        setValue('valRssi', 'cardRssi', 'rssi', d.rssi, 0, null);
+        setSignal(d.rssi);
+    }
+    if (d.battery !== undefined) {
+        setValue('valBatt', 'cardBatt', 'battery', d.battery, 2, null);
+        setBattery(d.battery);
+    }
+
+    // Charts
+    pushHistory(timeStr, d.temperature ?? null, d.humidity ?? null, d.co2 ?? null);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  NODE-RED ui_template  –  scope.$watch Hook
+//  Dieser Block wird von Node-RED automatisch ausgeführt.
+//  'scope' und 'msg' werden von der AngularJS-Laufzeit bereitgestellt.
+// ══════════════════════════════════════════════════════════════════
+try {
+    /* jshint ignore:start */
+    if (typeof scope !== 'undefined') {
+        scope.$watch('msg', function(msg) {
+            if (!msg || !msg.payload) return;
+            applyData(typeof msg.payload === 'string'
+                ? JSON.parse(msg.payload) : msg.payload);
+        });
+    }
+    /* jshint ignore:end */
+} catch(e) { /* läuft außerhalb Node-RED – Demo-Modus aktiv */ }
+
+// ══════════════════════════════════════════════════════════════════
+//  DEMO-MODUS: simulierte Daten, solange kein echtes Signal kommt
+// ══════════════════════════════════════════════════════════════════
+let demoRunning = true;
+let demoTemp = 22.0, demoHum = 48.0, demoCo2 = 800;
+
+function rnd(base, delta) {
+    return base + (Math.random() - 0.5) * delta;
+}
+
+function runDemo() {
+    if (!demoRunning) return;
+    demoTemp = Math.max(15, Math.min(32, demoTemp + (Math.random() - 0.5) * 0.3));
+    demoHum  = Math.max(20, Math.min(80, demoHum  + (Math.random() - 0.5) * 0.8));
+    demoCo2  = Math.max(400, Math.min(1800, demoCo2 + (Math.random() - 0.5) * 20));
+
+    applyData({
+        deviceName:  'Thermokon JOY – Demo',
+        devEUI:      'A81758FFFE050D2C',
+        gateway:     'GW-Demo',
+        temperature: parseFloat(demoTemp.toFixed(1)),
+        humidity:    parseFloat(demoHum.toFixed(1)),
+        co2:         Math.round(demoCo2),
+        voc:         Math.round(rnd(80, 60)),
+        pressure:    parseFloat(rnd(1013, 4).toFixed(1)),
+        lux:         Math.round(rnd(300, 200)),
+        rssi:        Math.round(rnd(-82, 20)),
+        battery:     parseFloat(rnd(3.25, 0.2).toFixed(2)),
+    });
+
+    // Demo-Modus-Badge zurücksetzen
+    document.getElementById('connText').textContent = 'Demo-Modus';
+    const badge = document.getElementById('connBadge');
+    badge.className = 'conn-badge';
+    badge.querySelector('.dot').style.background = '#f59e0b';
+    document.getElementById('demoNotice').classList.remove('hidden');
+
+    setTimeout(runDemo, 5000);
+}
+
+// Demo startet verzögert – echte Daten würden es sofort stoppen
+setTimeout(runDemo, 500);
+
+// Öffentliche API: wird von Node-RED aufgerufen, wenn keine AngularJS-Umgebung
+// vorhanden ist (z. B. einfacher HTTP-Request-Node → iframe)
+window.receiveSensorData = function(data) {
+    demoRunning = false;
+    applyData(typeof data === 'string' ? JSON.parse(data) : data);
+};
+</script>
+</body>
+</html>

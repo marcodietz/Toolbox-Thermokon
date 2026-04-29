@@ -50,7 +50,7 @@
 49;LoRaWAN ;Radio;ADR;ADR;adr;C217;n.V.;n.V.;Adaptive Data Rate aktivieren. 0 = ADR deaktiviert, 1 = ADR aktiviert.;Enable Adaptive Data Rate. 0 = ADR disabled, 1 = ADR enabled.;0...1
 50;LoRaWAN ;Radio;Data Rate;Data Rate;data_rate;C218;n.V.;n.V.;LoRaWAN Datenrate manuell einstellen (0-5, DR0 = SF12, DR5 = SF7).;Manually set LoRaWAN data rate (0-5, DR0 = SF12, DR5 = SF7).;0...5
 51;;;;;;;;;;;
-52;;;;;;;;;;;
+52;;!!!!Error!!!! Sollwertverstellbereich;;;;;;;;;
 53;;;;;;;;;;;
 54;;;;;;;;;;;
 55;;;;;;;;;;;

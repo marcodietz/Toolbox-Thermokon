@@ -14,11 +14,12 @@
 <div class="sticky-output">
 <h3 id="outputTitle" style="margin:0 0 6px 0;">Generierter Downlink</h3>
 <div id="output">(kein Wert gesetzt)</div>
-<button onclick="copyToClipboard()" id="copyBtn" class="action-btn-copy" disabled>In Zwischenablage kopieren</button>
-<button onclick="clearAllInputs()" id="clearBtn" class="action-btn-clear" style="margin-left: 10px;">Alle Werte löschen</button>
-<button onclick="saveToHistory()" id="saveBtn" class="btn-save-history" style="margin-left: 10px;" disabled>💾 Downlink in Historie speichern</button>
-<div class="history-bar">
-    <select id="historySelect" onchange="loadFromHistory()">
+<div class="action-bar">
+    <button onclick="copyToClipboard()" id="copyBtn" class="action-btn-copy" disabled>In Zwischenablage kopieren</button>
+    <button onclick="clearAllInputs()" id="clearBtn" class="action-btn-clear">Alle Werte löschen</button>
+    <span class="action-bar-spacer"></span>
+    <button onclick="saveToHistory()" id="saveBtn" class="btn-save-history" disabled>💾 In Historie speichern</button>
+    <select id="historySelect" onchange="loadFromHistory()" class="history-select">
         <option value="" id="historyPlaceholder">-- Gespeicherte Downlinks --</option>
     </select>
     <button onclick="exportHistory()" id="exportBtn" class="btn-export-history" disabled>📄 Export TXT</button>
@@ -40,6 +41,17 @@ renderHeader({
     showLanguage: true,
 });
 
+// Sticky-Output direkt unterhalb der Top-Bar positionieren
+function updateStickyOutputTop() {
+    const topBar = document.querySelector('.top-bar');
+    const stickyOutput = document.querySelector('.sticky-output');
+    if (topBar && stickyOutput) {
+        stickyOutput.style.top = topBar.offsetHeight + 'px';
+    }
+}
+window.addEventListener('load', updateStickyOutputTop);
+window.addEventListener('resize', updateStickyOutputTop);
+
 // ==== SPRACH-SYSTEM ====
 const translations = {
     de: {
@@ -55,7 +67,7 @@ const translations = {
         copyBtn: 'In Zwischenablage kopieren',
         copied: 'Downlink kopiert!',
         clearBtn: 'Alle Werte löschen',
-        saveBtn: '💾 Downlink in Historie speichern',
+        saveBtn: '💾 In Historie speichern',
         saved: 'Downlink gespeichert!',
         historyPlaceholder: '-- Gespeicherte Downlinks --',
         exportBtn: '📄 Export TXT',
@@ -83,7 +95,7 @@ const translations = {
         copyBtn: 'Copy to Clipboard',
         copied: 'Downlink copied!',
         clearBtn: 'Clear All Values',
-        saveBtn: '💾 Save Downlink to History',
+        saveBtn: '💾 Save to History',
         saved: 'Downlink saved!',
         historyPlaceholder: '-- Saved Downlinks --',
         exportBtn: '📄 Export TXT',
@@ -347,11 +359,24 @@ function downloadParameter(index) {
     a.click();
 }
 
+function showToast(message) {
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.classList.add('toast-visible');
+    clearTimeout(toast._hideTimer);
+    toast._hideTimer = setTimeout(() => toast.classList.remove('toast-visible'), 2000);
+}
+
 function copyToClipboard() {
     const raw = document.getElementById("output").dataset.raw;
     const text = raw || document.getElementById("output").innerText;
     navigator.clipboard.writeText(text);
-    alert(t('copied'));
+    showToast(t('copied'));
 }
 
 const HISTORY_KEY = 'downlinkHistory';
@@ -399,7 +424,7 @@ function saveToHistory() {
     }).join(', ');
 
     const now = new Date();
-    const timestamp = now.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const timestamp = now.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 
     const entry = { timestamp, raw, fieldValues, labels };
 
@@ -409,7 +434,7 @@ function saveToHistory() {
     setHistory(history);
 
     renderHistoryDropdown();
-    alert(t('saved'));
+    showToast(t('saved'));
 }
 
 function renderHistoryDropdown() {
@@ -423,7 +448,8 @@ function renderHistoryDropdown() {
         opt.value = idx;
         const formattedHex = entry.raw.match(/.{1,8}/g).join(' | ');
         const shortHex = formattedHex.length > 40 ? formattedHex.substring(0, 40) + '...' : formattedHex;
-        opt.textContent = entry.timestamp + ' | ' + shortHex;
+        const num = String(history.length - idx).padStart(2, '0');
+        opt.textContent = '#' + num + ' [' + entry.timestamp + '] 0x ' + shortHex;
         opt.title = entry.labels;
         select.appendChild(opt);
     });

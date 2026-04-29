@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Dashboard – Schnittstellendokumentation</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --primary:   #e63012;
+            --accent:    #2563eb;
+            --ok:        #16a34a;
+            --warn:      #d97706;
+            --err:       #dc2626;
+            --text:      #1e293b;
+            --muted:     #64748b;
+            --border:    #e2e8f0;
+            --bg:        #f0f2f5;
+            --card:      #ffffff;
+            --radius:    10px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        /* ── Header ── */
+        .page-header {
+            background: var(--card);
+            border-bottom: 3px solid var(--primary);
+            padding: 22px 40px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+        .page-header .brand { font-size: 1.25rem; font-weight: 700; color: var(--primary); }
+        .page-header .sub   { font-size: .88rem; color: var(--muted); margin-top: 2px; }
+        .page-header .badge {
+            margin-left: auto;
+            background: #eff6ff;
+            color: var(--accent);
+            font-size: .78rem;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid #bfdbfe;
+        }
+
+        /* ── Layout ── */
+        .content {
+            max-width: 960px;
+            margin: 36px auto;
+            padding: 0 24px 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 28px;
+        }
+
+        /* ── Sektionen ── */
+        .section {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 26px 28px;
+            box-shadow: 0 2px 10px rgba(0,0,0,.07);
+        }
+        .section-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--primary);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 10px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h2 { font-size: 1rem; font-weight: 700; margin: 18px 0 8px; color: var(--text); }
+        h2:first-child { margin-top: 0; }
+        p { color: var(--muted); margin-bottom: 10px; }
+        p:last-child { margin-bottom: 0; }
+
+        /* ── Tabelle ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .88rem;
+        }
+        thead th {
+            background: #f8fafc;
+            text-align: left;
+            padding: 9px 12px;
+            font-size: .78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: var(--muted);
+            border-bottom: 2px solid var(--border);
+        }
+        tbody tr { border-bottom: 1px solid var(--border); }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: #f8fafc; }
+        td { padding: 9px 12px; vertical-align: top; }
+        td:first-child { font-weight: 600; color: var(--text); white-space: nowrap; }
+        td code {
+            font-family: 'Consolas', 'Cascadia Code', monospace;
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: .85em;
+            color: var(--accent);
+        }
+
+        /* ── Feature-Tags ── */
+        .feat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 4px;
+        }
+        .feat-item {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: .85rem;
+        }
+        .feat-item .fi-icon { font-size: 1.3rem; margin-bottom: 4px; display: block; }
+        .feat-item .fi-title { font-weight: 700; color: var(--text); }
+        .feat-item .fi-desc  { color: var(--muted); font-size: .8rem; margin-top: 2px; }
+
+        /* ── Code-Block ── */
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: 18px 20px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Cascadia Code', monospace;
+            font-size: .84rem;
+            line-height: 1.7;
+            margin: 12px 0;
+        }
+        pre .cm  { color: #64748b; }          /* Kommentar */
+        pre .kw  { color: #7dd3fc; }          /* Keyword / Schlüssel */
+        pre .str { color: #86efac; }          /* String */
+        pre .num { color: #fdba74; }          /* Zahl */
+        pre .pun { color: #94a3b8; }          /* Satzzeichen */
+
+        /* ── Schritte ── */
+        .steps { counter-reset: step; display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+        .step {
+            display: flex; gap: 14px; align-items: flex-start;
+            background: #f8fafc; border-radius: 8px; padding: 12px 16px;
+            border: 1px solid var(--border);
+        }
+        .step::before {
+            counter-increment: step;
+            content: counter(step);
+            min-width: 26px; height: 26px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex; align-items: center; justify-content: center;
+            font-size: .78rem; font-weight: 700;
+            flex-shrink: 0;
+        }
+        .step-body { font-size: .88rem; color: var(--text); }
+        .step-body strong { color: var(--text); }
+        .step-body .muted { color: var(--muted); font-size: .8rem; }
+
+        /* ── Grenzwert-Ampel ── */
+        .chip {
+            display: inline-block;
+            font-size: .75rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        .chip.ok   { background: #f0fdf4; color: var(--ok); }
+        .chip.warn { background: #fffbeb; color: var(--warn); }
+        .chip.err  { background: #fef2f2; color: var(--err); }
+
+        /* ── Hinweis-Box ── */
+        .info-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: .85rem;
+            color: var(--accent);
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+        .info-box .ib-icon { flex-shrink: 0; font-size: 1.1rem; }
+
+        /* ── Footer ── */
+        .doc-footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: .8rem;
+            padding: 20px 0 0;
+            border-top: 1px solid var(--border);
+        }
+
+        @media (max-width: 600px) {
+            .page-header { padding: 16px 18px; }
+            .content { padding: 0 12px 40px; margin-top: 20px; }
+            .section { padding: 18px 16px; }
+            .feat-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="page-header">
+    <div>
+        <div class="brand">📊 Sensor Dashboard – Schnittstellendokumentation</div>
+        <div class="sub">Thermokon IoT Tools · Node-RED HTML-Plugin</div>
+    </div>
+    <div class="badge">Version 1.0 · April 2026</div>
+</header>
+
+<!-- ===== CONTENT ===== -->
+<main class="content">
+
+    <!-- ── 1. Übersicht ── -->
+    <section class="section">
+        <div class="section-title">ℹ️ 1. Übersicht</div>
+        <p>
+            Das <strong>Sensor Dashboard</strong> ist eine eigenständige HTML-Seite, die Echtzeit-Sensordaten
+            von Thermokon LoRaWAN-Geräten visualisiert. Sie kann direkt im Browser geöffnet
+            <em>oder</em> als <strong>HTML-Plugin in Node-RED</strong> über einen
+            <code>ui_template</code>-Node eingebunden werden.
+        </p>
+
+        <h2>Enthaltene Features</h2>
+        <div class="feat-grid">
+            <div class="feat-item">
+                <span class="fi-icon">🃏</span>
+                <div class="fi-title">8 KPI-Karten</div>
+                <div class="fi-desc">Temperatur, Feuchte, CO₂, VOC, Luftdruck, Helligkeit, RSSI, Batterie</div>
+            </div>
+            <div class="feat-item">
+                <span class="fi-icon">🚦</span>
+                <div class="fi-title">Ampel-Färbung</div>
+                <div class="fi-desc">Karten färben sich grün / gelb / rot nach konfigurierbaren Grenzwerten</div>
+            </div>
+            <div class="feat-item">
+                <span class="fi-icon">📈</span>
+                <div class="fi-title">3 Verlaufsgraphen</div>
+                <div class="fi-desc">Temperatur, Feuchte, CO₂ – letzte 30 Messwerte via Chart.js</div>
+            </div>
+            <div class="feat-item">
+                <span class="fi-icon">🔔</span>
+                <div class="fi-title">Alarm-Log</div>
+                <div class="fi-desc">Automatisch bei Grenzwertüberschreitung, mit Zeitstempel</div>
+            </div>
+            <div class="feat-item">
+                <span class="fi-icon">📶</span>
+                <div class="fi-title">Signal- & Batteriebalken</div>
+                <div class="fi-desc">Visuelle Anzeige der Signalstärke und Batteriespannung</div>
+            </div>
+            <div class="feat-item">
+                <span class="fi-icon">🎭</span>
+                <div class="fi-title">Demo-Modus</div>
+                <div class="fi-desc">Simulierte Zufallsdaten, solange kein echtes Signal eintrifft</div>
+            </div>
+            <div class="feat-item">
+                <span class="fi-icon">📱</span>
+                <div class="fi-title">Responsiv</div>
+                <div class="fi-desc">Optimiert für Desktop, Tablet und mobile Geräte</div>
+            </div>
+            <div class="feat-item">
+                <span class="fi-icon">🔌</span>
+                <div class="fi-title">Node-RED kompatibel</div>
+                <div class="fi-desc">Direkte Integration via <code>ui_template</code> oder iframe</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 2. Node-RED Integration ── -->
+    <section class="section">
+        <div class="section-title">🔌 2. Integration in Node-RED</div>
+
+        <h2>Variante A – ui_template (empfohlen)</h2>
+        <div class="steps">
+            <div class="step">
+                <div class="step-body">
+                    <strong>Node-RED Dashboard installieren</strong><br>
+                    <span class="muted">Im Node-RED Manager: <code>node-red-dashboard</code> installieren
+                    oder via Terminal: <code>npm install node-red-dashboard</code></span>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-body">
+                    <strong>ui_template-Node anlegen</strong><br>
+                    <span class="muted">Einen <code>ui_template</code>-Node in den Flow ziehen und öffnen.</span>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-body">
+                    <strong>HTML-Inhalt einfügen</strong><br>
+                    <span class="muted">Den gesamten Inhalt der Datei
+                    <code>iot-apps/sensor-dashboard/sensor-dashboard.html</code> in das Template-Textfeld
+                    einfügen. Größe im Dashboard-Tab auf gewünschte Breite × Höhe setzen.</span>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-body">
+                    <strong>Datenquelle verbinden</strong><br>
+                    <span class="muted">Einen Eingabe-Node (z. B. <code>mqtt in</code>, <code>http in</code>
+                    oder <code>inject</code>) mit dem <code>ui_template</code>-Node verbinden.
+                    Das <code>msg.payload</code> muss das JSON-Format aus Abschnitt 3 einhalten.</span>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-body">
+                    <strong>Deploy & öffnen</strong><br>
+                    <span class="muted">Flow deployen → Dashboard unter
+                    <code>http://&lt;node-red-host&gt;:1880/ui</code> aufrufen.</span>
+                </div>
+            </div>
+        </div>
+
+        <h2 style="margin-top:22px">Variante B – Iframe / HTTP-Node</h2>
+        <p>
+            Das Dashboard kann auch als statische Seite über einen <code>http in</code>-Node
+            ausgeliefert und in einem <code>&lt;iframe&gt;</code> eingebettet werden.
+            In diesem Fall werden Daten über die globale JavaScript-Funktion
+            <code>window.receiveSensorData(payload)</code> übergeben:
+        </p>
+        <pre><span class="cm">// Aus einem anderen Frame oder Script aufrufen:</span>
+<span class="kw">document</span>.getElementById(<span class="str">'dashboard-frame'</span>).contentWindow
+    .receiveSensorData({ temperature: <span class="num">22.4</span>, humidity: <span class="num">46.3</span> <span class="pun">}</span>);</pre>
+    </section>
+
+    <!-- ── 3. Payload-Format ── -->
+    <section class="section">
+        <div class="section-title">📦 3. msg.payload – Datenformat</div>
+
+        <p>Das Dashboard erwartet ein <strong>JSON-Objekt</strong> als <code>msg.payload</code>.
+        Alle Felder sind <strong>optional</strong> – nicht vorhandene Werte werden als <code>—</code> angezeigt.</p>
+
+        <pre><span class="pun">{</span>
+  <span class="kw">"deviceName"</span><span class="pun">:</span>  <span class="str">"Sensor 01"</span><span class="pun">,</span>         <span class="cm">// Anzeigename im Dashboard</span>
+  <span class="kw">"devEUI"</span><span class="pun">:</span>      <span class="str">"A81758FFFE050D2C"</span><span class="pun">,</span>  <span class="cm">// LoRaWAN Device EUI</span>
+  <span class="kw">"gateway"</span><span class="pun">:</span>     <span class="str">"GW-Dach"</span><span class="pun">,</span>          <span class="cm">// Gateway-Bezeichnung</span>
+  <span class="kw">"temperature"</span><span class="pun">:</span> <span class="num">22.4</span><span class="pun">,</span>               <span class="cm">// °C</span>
+  <span class="kw">"humidity"</span><span class="pun">:</span>    <span class="num">46.3</span><span class="pun">,</span>               <span class="cm">// % relative Feuchte</span>
+  <span class="kw">"co2"</span><span class="pun">:</span>         <span class="num">910</span><span class="pun">,</span>                <span class="cm">// ppm</span>
+  <span class="kw">"voc"</span><span class="pun">:</span>         <span class="num">75</span><span class="pun">,</span>                 <span class="cm">// IAQ-Index 0–500</span>
+  <span class="kw">"pressure"</span><span class="pun">:</span>    <span class="num">1013.2</span><span class="pun">,</span>             <span class="cm">// hPa</span>
+  <span class="kw">"lux"</span><span class="pun">:</span>         <span class="num">340</span><span class="pun">,</span>                <span class="cm">// lux</span>
+  <span class="kw">"rssi"</span><span class="pun">:</span>        <span class="num">-82</span><span class="pun">,</span>                <span class="cm">// dBm (negativ)</span>
+  <span class="kw">"battery"</span><span class="pun">:</span>     <span class="num">3.24</span>                <span class="cm">// V  (Bereich 2.9 – 3.6 V)</span>
+<span class="pun">}</span></pre>
+
+        <h2>Feldreferenz</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Feld</th>
+                    <th>Typ</th>
+                    <th>Einheit</th>
+                    <th>Pflicht</th>
+                    <th>Beschreibung</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>deviceName</code></td>
+                    <td>String</td>
+                    <td>–</td>
+                    <td>Nein</td>
+                    <td>Anzeigename des Geräts in der Geräteleiste</td>
+                </tr>
+                <tr>
+                    <td><code>devEUI</code></td>
+                    <td>String</td>
+                    <td>–</td>
+                    <td>Nein</td>
+                    <td>LoRaWAN Device EUI (16 Hex-Zeichen)</td>
+                </tr>
+                <tr>
+                    <td><code>gateway</code></td>
+                    <td>String</td>
+                    <td>–</td>
+                    <td>Nein</td>
+                    <td>Bezeichnung des empfangenden Gateways</td>
+                </tr>
+                <tr>
+                    <td><code>temperature</code></td>
+                    <td>Number</td>
+                    <td>°C</td>
+                    <td>Nein</td>
+                    <td>Lufttemperatur, 1 Dezimalstelle</td>
+                </tr>
+                <tr>
+                    <td><code>humidity</code></td>
+                    <td>Number</td>
+                    <td>%rF</td>
+                    <td>Nein</td>
+                    <td>Relative Luftfeuchte, 1 Dezimalstelle</td>
+                </tr>
+                <tr>
+                    <td><code>co2</code></td>
+                    <td>Number</td>
+                    <td>ppm</td>
+                    <td>Nein</td>
+                    <td>CO₂-Konzentration, ganzzahlig</td>
+                </tr>
+                <tr>
+                    <td><code>voc</code></td>
+                    <td>Number</td>
+                    <td>IAQ</td>
+                    <td>Nein</td>
+                    <td>Luftqualitätsindex 0–500 (Bosch BME680 IAQ)</td>
+                </tr>
+                <tr>
+                    <td><code>pressure</code></td>
+                    <td>Number</td>
+                    <td>hPa</td>
+                    <td>Nein</td>
+                    <td>Luftdruck, 1 Dezimalstelle</td>
+                </tr>
+                <tr>
+                    <td><code>lux</code></td>
+                    <td>Number</td>
+                    <td>lux</td>
+                    <td>Nein</td>
+                    <td>Beleuchtungsstärke, ganzzahlig</td>
+                </tr>
+                <tr>
+                    <td><code>rssi</code></td>
+                    <td>Number</td>
+                    <td>dBm</td>
+                    <td>Nein</td>
+                    <td>LoRaWAN Empfangspegel (negativer Wert, z. B. −82)</td>
+                </tr>
+                <tr>
+                    <td><code>battery</code></td>
+                    <td>Number</td>
+                    <td>V</td>
+                    <td>Nein</td>
+                    <td>Versorgungsspannung; Bereich 2,9–3,6 V für Balkenanzeige</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- ── 4. Grenzwerte & Alarmlogik ── -->
+    <section class="section">
+        <div class="section-title">🚦 4. Grenzwerte & Alarmlogik</div>
+
+        <p>
+            Jede KPI-Karte färbt sich automatisch anhand vordefinierter Grenzwerte.
+            Bei Überschreitung wird automatisch ein Eintrag im Alarm-Log angelegt.
+            Die Grenzwerte sind im <code>&lt;script&gt;</code>-Block des Dashboards
+            im Objekt <code>LIMITS</code> anpassbar.
+        </p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Messgröße</th>
+                    <th>Einheit</th>
+                    <th><span class="chip ok">Grün (OK)</span></th>
+                    <th><span class="chip warn">Gelb (Warnung)</span></th>
+                    <th><span class="chip err">Rot (Alarm)</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Temperatur</td>
+                    <td>°C</td>
+                    <td>18 … 26 °C</td>
+                    <td>15 … 18 oder 26 … 30 °C</td>
+                    <td>&lt; 15 oder &gt; 30 °C</td>
+                </tr>
+                <tr>
+                    <td>Rel. Feuchte</td>
+                    <td>%rF</td>
+                    <td>30 … 60 %</td>
+                    <td>20 … 30 oder 60 … 70 %</td>
+                    <td>&lt; 20 oder &gt; 70 %</td>
+                </tr>
+                <tr>
+                    <td>CO₂</td>
+                    <td>ppm</td>
+                    <td>&lt; 1000 ppm</td>
+                    <td>1000 … 1499 ppm</td>
+                    <td>≥ 1500 ppm</td>
+                </tr>
+                <tr>
+                    <td>VOC / IAQ</td>
+                    <td>IAQ</td>
+                    <td>&lt; 150</td>
+                    <td>150 … 299</td>
+                    <td>≥ 300</td>
+                </tr>
+                <tr>
+                    <td>RSSI</td>
+                    <td>dBm</td>
+                    <td>&gt; −100 dBm</td>
+                    <td>−100 … −109 dBm</td>
+                    <td>≤ −110 dBm</td>
+                </tr>
+                <tr>
+                    <td>Batterie</td>
+                    <td>V</td>
+                    <td>&gt; 3,1 V</td>
+                    <td>3,0 … 3,1 V</td>
+                    <td>≤ 3,0 V</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2 style="margin-top:18px">Grenzwerte anpassen</h2>
+        <p>Das Objekt <code>LIMITS</code> befindet sich im <code>&lt;script&gt;</code>-Abschnitt
+        der Datei <code>sensor-dashboard.html</code>:</p>
+        <pre><span class="kw">const</span> LIMITS <span class="pun">=</span> <span class="pun">{</span>
+  <span class="kw">temperature</span><span class="pun">:</span> <span class="pun">{</span> warn<span class="pun">:</span> [<span class="num">18</span>, <span class="num">26</span>],  err<span class="pun">:</span> [<span class="num">15</span>, <span class="num">30</span>]  <span class="pun">},</span>
+  <span class="kw">humidity</span><span class="pun">:</span>    <span class="pun">{</span> warn<span class="pun">:</span> [<span class="num">30</span>, <span class="num">60</span>],  err<span class="pun">:</span> [<span class="num">20</span>, <span class="num">70</span>]  <span class="pun">},</span>
+  <span class="kw">co2</span><span class="pun">:</span>         <span class="pun">{</span> warn<span class="pun">:</span> <span class="num">1000</span>,      err<span class="pun">:</span> <span class="num">1500</span>       <span class="pun">},</span>
+  <span class="kw">voc</span><span class="pun">:</span>         <span class="pun">{</span> warn<span class="pun">:</span> <span class="num">150</span>,       err<span class="pun">:</span> <span class="num">300</span>        <span class="pun">},</span>
+  <span class="kw">battery</span><span class="pun">:</span>     <span class="pun">{</span> warn<span class="pun">:</span> <span class="num">3.1</span>,       err<span class="pun">:</span> <span class="num">3.0</span>        <span class="pun">},</span>
+  <span class="kw">rssi</span><span class="pun">:</span>        <span class="pun">{</span> warn<span class="pun">:</span> <span class="num">-100</span>,      err<span class="pun">:</span> <span class="num">-110</span>       <span class="pun">},</span>
+<span class="pun">};</span></pre>
+    </section>
+
+    <!-- ── 5. JavaScript API ── -->
+    <section class="section">
+        <div class="section-title">🧩 5. JavaScript-API</div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Funktion / Variable</th>
+                    <th>Sichtbarkeit</th>
+                    <th>Beschreibung</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>window.receiveSensorData(data)</code></td>
+                    <td>global</td>
+                    <td>Übergibt ein JSON-Objekt (oder JSON-String) an das Dashboard. Beendet automatisch den Demo-Modus.</td>
+                </tr>
+                <tr>
+                    <td><code>applyData(d)</code></td>
+                    <td>intern</td>
+                    <td>Interne Hauptfunktion zur Darstellung eines Datensatzes. Wird von <code>receiveSensorData</code> und dem Node-RED <code>scope.$watch</code>-Hook aufgerufen.</td>
+                </tr>
+                <tr>
+                    <td><code>clearAlarms()</code></td>
+                    <td>global</td>
+                    <td>Leert den Alarm-Log. Wird auch durch den „Leeren"-Button im Dashboard aufgerufen.</td>
+                </tr>
+                <tr>
+                    <td><code>addAlarm(level, msg)</code></td>
+                    <td>intern</td>
+                    <td>Fügt einen Alarm-Eintrag hinzu. <code>level</code>: <code>'warn'</code> oder <code>'err'</code>.</td>
+                </tr>
+                <tr>
+                    <td><code>LIMITS</code></td>
+                    <td>global</td>
+                    <td>Konfigurationsobjekt für Grenzwerte. Kann vor dem ersten Dateneingang überschrieben werden.</td>
+                </tr>
+                <tr>
+                    <td><code>history</code></td>
+                    <td>intern</td>
+                    <td>Ringpuffer-Objekt für Chart-Verlaufsdaten (max. 30 Werte, konfigurierbar via <code>MAX_HIST</code>).</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2 style="margin-top:18px">scope.$watch (AngularJS / Node-RED)</h2>
+        <p>Im Node-RED <code>ui_template</code>-Kontext steht das AngularJS-<code>scope</code>-Objekt
+        zur Verfügung. Der Hook ist bereits im Dashboard integriert:</p>
+        <pre><span class="kw">scope</span>.$watch(<span class="str">'msg'</span>, <span class="kw">function</span>(msg) <span class="pun">{</span>
+  <span class="kw">if</span> (!msg || !msg.payload) <span class="kw">return</span>;
+  applyData(<span class="kw">typeof</span> msg.payload === <span class="str">'string'</span>
+    ? JSON.parse(msg.payload) : msg.payload);
+<span class="pun">});</span></pre>
+
+        <div class="info-box">
+            <span class="ib-icon">💡</span>
+            <div>
+                Wird das Dashboard außerhalb von Node-RED geöffnet (z. B. direkt im Browser),
+                startet automatisch der <strong>Demo-Modus</strong> mit simulierten Zufallsdaten
+                im 5-Sekunden-Takt. Er stoppt, sobald <code>receiveSensorData()</code> aufgerufen wird.
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 6. Dateistruktur ── -->
+    <section class="section">
+        <div class="section-title">📁 6. Dateistruktur</div>
+        <pre><span class="cm">Projektverzeichnis/</span>
+├── index.html
+├── style.css
+├── assets/
+│   ├── header.js                          <span class="cm">← Zentraler Header + Navigation</span>
+│   └── <strong>sensor-dashboard-api.html</strong>         <span class="cm">← Diese Dokumentation</span>
+└── iot-apps/
+    └── sensor-dashboard/
+        └── sensor-dashboard.html          <span class="cm">← Dashboard-Hauptdatei</span></pre>
+    </section>
+
+    <div class="doc-footer">
+        Thermokon Sensortechnik GmbH · IoT Tools · sensor-dashboard-api.html · Stand April 2026
+    </div>
+
+</main>
+</body>
+</html>

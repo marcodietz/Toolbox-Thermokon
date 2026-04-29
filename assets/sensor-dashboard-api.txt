@@ -1,0 +1,245 @@
+================================================================================
+  THERMOKON SENSOR DASHBOARD – SCHNITTSTELLENDOKUMENTATION
+  Version 1.0 | April 2026
+================================================================================
+
+
+--------------------------------------------------------------------------------
+1. ÜBERSICHT
+--------------------------------------------------------------------------------
+
+Das Sensor Dashboard ist eine eigenständige HTML-Seite, die Echtzeit-Sensordaten
+von Thermokon LoRaWAN-Geräten visualisiert. Sie kann direkt im Browser geöffnet
+oder als HTML-Plugin in Node-RED über einen ui_template-Node eingebunden werden.
+
+ENTHALTENE FEATURES
+───────────────────
+  • 8 KPI-Karten
+    Temperatur, Feuchte, CO₂, VOC/Luftqualität, Luftdruck, Helligkeit,
+    RSSI und Batteriespannung werden als einzelne Karten dargestellt.
+
+  • Ampel-Färbung
+    Jede Karte färbt sich automatisch grün / gelb / rot anhand
+    konfigurierbarer Grenzwerte.
+
+  • 3 Verlaufsgraphen
+    Temperatur, Feuchte und CO₂ werden als Liniendiagramme mit den
+    letzten 30 Messwerten dargestellt (via Chart.js).
+
+  • Alarm-Log
+    Grenzwertüberschreitungen werden automatisch mit Zeitstempel in einer
+    scrollbaren Liste protokolliert.
+
+  • Signal- & Batteriebalken
+    Visuelle Anzeige der LoRaWAN-Signalstärke (4-Balken) sowie der
+    Batteriespannung als Füllstandsbalken mit Prozentwert.
+
+  • Demo-Modus
+    Solange kein echtes Datensignal eintrifft, werden automatisch
+    simulierte Zufallsdaten im 5-Sekunden-Takt angezeigt.
+
+  • Responsives Layout
+    Das Dashboard passt sich an Desktop, Tablet und mobile Geräte an.
+
+  • Node-RED kompatibel
+    Direkte Integration via ui_template-Node oder als iframe.
+
+
+--------------------------------------------------------------------------------
+2. INTEGRATION IN NODE-RED
+--------------------------------------------------------------------------------
+
+VARIANTE A – ui_template (empfohlen)
+─────────────────────────────────────
+Schritt 1:  Node-RED Dashboard installieren
+            Im Node-RED Paket-Manager "node-red-dashboard" suchen und
+            installieren, oder per Terminal:
+              npm install node-red-dashboard
+
+Schritt 2:  ui_template-Node anlegen
+            Einen "ui_template"-Node in den Flow ziehen und per
+            Doppelklick öffnen.
+
+Schritt 3:  HTML-Inhalt einfügen
+            Den gesamten Inhalt der Datei
+              iot-apps/sensor-dashboard/sensor-dashboard.html
+            in das Template-Textfeld kopieren.
+            Breite und Höhe im Dashboard-Tab nach Bedarf anpassen.
+
+Schritt 4:  Datenquelle verbinden
+            Einen Eingabe-Node (z. B. "mqtt in", "http in" oder "inject")
+            mit dem ui_template-Node verbinden. Das msg.payload muss dem
+            JSON-Format aus Abschnitt 3 entsprechen.
+
+Schritt 5:  Deploy & öffnen
+            Flow deployen und das Dashboard aufrufen unter:
+              http://<node-red-host>:1880/ui
+
+
+VARIANTE B – Iframe / HTTP-Node
+────────────────────────────────
+Das Dashboard kann auch als statische Seite über einen "http in"-Node
+ausgeliefert und in einem <iframe> eingebettet werden. Daten werden dann
+über die globale JavaScript-Funktion window.receiveSensorData(payload)
+übergeben:
+
+  document.getElementById('dashboard-frame').contentWindow
+      .receiveSensorData({ temperature: 22.4, humidity: 46.3 });
+
+
+--------------------------------------------------------------------------------
+3. MSG.PAYLOAD – DATENFORMAT
+--------------------------------------------------------------------------------
+
+Das Dashboard erwartet ein JSON-Objekt als msg.payload.
+Alle Felder sind optional – fehlende Werte werden als "—" angezeigt.
+
+BEISPIEL
+────────
+  {
+    "deviceName":  "Sensor 01",
+    "devEUI":      "A81758FFFE050D2C",
+    "gateway":     "GW-Dach",
+    "temperature": 22.4,
+    "humidity":    46.3,
+    "co2":         910,
+    "voc":         75,
+    "pressure":    1013.2,
+    "lux":         340,
+    "rssi":        -82,
+    "battery":     3.24
+  }
+
+FELDREFERENZ
+────────────
+  Feld          Typ      Einheit  Beschreibung
+  ────────────────────────────────────────────────────────────────────────
+  deviceName    String   –        Anzeigename des Geräts in der Geräteleiste
+  devEUI        String   –        LoRaWAN Device EUI (16 Hex-Zeichen)
+  gateway       String   –        Bezeichnung des empfangenden Gateways
+  temperature   Number   °C       Lufttemperatur, 1 Dezimalstelle
+  humidity      Number   %rF      Relative Luftfeuchte, 1 Dezimalstelle
+  co2           Number   ppm      CO₂-Konzentration, ganzzahlig
+  voc           Number   IAQ      Luftqualitätsindex 0–500 (Bosch BME680)
+  pressure      Number   hPa      Luftdruck, 1 Dezimalstelle
+  lux           Number   lux      Beleuchtungsstärke, ganzzahlig
+  rssi          Number   dBm      LoRaWAN Empfangspegel (negativer Wert)
+  battery       Number   V        Versorgungsspannung; Bereich 2,9–3,6 V
+  ────────────────────────────────────────────────────────────────────────
+
+
+--------------------------------------------------------------------------------
+4. GRENZWERTE & ALARMLOGIK
+--------------------------------------------------------------------------------
+
+Jede KPI-Karte färbt sich automatisch anhand fester Grenzwerte.
+Bei Überschreitung wird automatisch ein Eintrag im Alarm-Log angelegt.
+
+GRENZWERTTABELLE
+────────────────
+  Messgröße    Einheit  Grün (OK)            Gelb (Warnung)           Rot (Alarm)
+  ──────────────────────────────────────────────────────────────────────────────
+  Temperatur   °C       18 … 26 °C           15…18 oder 26…30 °C      < 15 oder > 30 °C
+  Rel. Feuchte %rF      30 … 60 %            20…30 oder 60…70 %       < 20 oder > 70 %
+  CO₂          ppm      < 1000 ppm           1000 … 1499 ppm          ≥ 1500 ppm
+  VOC / IAQ    IAQ      < 150                150 … 299                ≥ 300
+  RSSI         dBm      > −100 dBm           −100 … −109 dBm          ≤ −110 dBm
+  Batterie     V        > 3,1 V              3,0 … 3,1 V              ≤ 3,0 V
+  ──────────────────────────────────────────────────────────────────────────────
+
+GRENZWERTE ANPASSEN
+───────────────────
+Die Grenzwerte befinden sich im <script>-Abschnitt der Datei
+sensor-dashboard.html im Objekt "LIMITS":
+
+  const LIMITS = {
+    temperature: { warn: [18, 26],  err: [15, 30]  },
+    humidity:    { warn: [30, 60],  err: [20, 70]  },
+    co2:         { warn: 1000,      err: 1500       },
+    voc:         { warn: 150,       err: 300        },
+    battery:     { warn: 3.1,       err: 3.0        },
+    rssi:        { warn: -100,      err: -110       },
+  };
+
+Für Bereichsgrenzwerte (temperature, humidity) gilt:
+  warn: [untere_Warnschwelle, obere_Warnschwelle]
+  err:  [untere_Alarmschwelle, obere_Alarmschwelle]
+
+Für Obergrenzen (co2, voc):
+  warn: Schwellenwert ab dem gewarnt wird
+  err:  Schwellenwert ab dem Alarm ausgelöst wird
+
+Für Untergrenzen (battery, rssi):
+  warn: Schwellenwert unter dem gewarnt wird
+  err:  Schwellenwert unter dem Alarm ausgelöst wird
+
+
+--------------------------------------------------------------------------------
+5. JAVASCRIPT-API
+--------------------------------------------------------------------------------
+
+ÖFFENTLICHE FUNKTIONEN (aufrufbar von außen)
+─────────────────────────────────────────────
+  window.receiveSensorData(data)
+      Übergibt ein JSON-Objekt oder JSON-String an das Dashboard.
+      Beendet automatisch den Demo-Modus.
+      Beispiel: window.receiveSensorData({ temperature: 22.4 });
+
+  clearAlarms()
+      Leert den Alarm-Log vollständig.
+      Wird auch durch den "Leeren"-Button im Dashboard aufgerufen.
+
+  LIMITS  (globales Objekt)
+      Konfiguration der Grenzwerte. Kann vor dem ersten Dateneingang
+      überschrieben werden, um eigene Schwellenwerte zu setzen.
+
+INTERNE FUNKTIONEN (nur innerhalb der Datei)
+─────────────────────────────────────────────
+  applyData(d)
+      Hauptfunktion zur Darstellung eines Datensatzes.
+      Wird von receiveSensorData() und dem Node-RED scope.$watch aufgerufen.
+
+  addAlarm(level, msg)
+      Fügt einen Alarm-Eintrag hinzu.
+      level: 'warn' oder 'err'
+
+  history  (internes Objekt)
+      Ringpuffer für Chart-Verlaufsdaten.
+      Maximale Tiefe: 30 Werte (konfigurierbar via MAX_HIST).
+
+NODE-RED ANGULARJS-HOOK (scope.$watch)
+──────────────────────────────────────
+Im Node-RED ui_template-Kontext steht das AngularJS-scope-Objekt zur
+Verfügung. Der Hook ist bereits im Dashboard integriert und muss nicht
+manuell konfiguriert werden:
+
+  scope.$watch('msg', function(msg) {
+    if (!msg || !msg.payload) return;
+    applyData(typeof msg.payload === 'string'
+      ? JSON.parse(msg.payload) : msg.payload);
+  });
+
+HINWEIS: Wird das Dashboard außerhalb von Node-RED geöffnet (z. B. direkt
+im Browser), startet automatisch der Demo-Modus. Er stoppt, sobald
+receiveSensorData() aufgerufen wird.
+
+
+--------------------------------------------------------------------------------
+6. DATEISTRUKTUR
+--------------------------------------------------------------------------------
+
+  Projektverzeichnis/
+  ├── index.html                              Haupt-Dashboard (Kachelübersicht)
+  ├── style.css                               Globales Stylesheet
+  ├── assets/
+  │   ├── header.js                           Zentraler Header + Navigation
+  │   ├── sensor-dashboard-api.html           Dokumentation (HTML, mit Formatierung)
+  │   └── sensor-dashboard-api.txt            Dokumentation (diese Datei, Klartext)
+  └── iot-apps/
+      └── sensor-dashboard/
+          └── sensor-dashboard.html           Dashboard-Hauptdatei
+
+
+--------------------------------------------------------------------------------
+  Thermokon Sensortechnik GmbH · IoT Tools · Stand April 2026
+--------------------------------------------------------------------------------

@@ -52,6 +52,7 @@ const NAV_APPS = [
     { id: 'downlink-generator', label: '⚙️ Downlink Generator',  path: 'iot-apps/downlink-generator/downlink-generator.html' },
     { id: 'lorawan-decoder',    label: '📡 LoRaWAN Decoder',     path: 'iot-apps/lorawan-decoder/lorawan-decoder.html' },
     { id: 'gemini-chat',        labels: { de: '🤖 KI-Assistent', en: '🤖 AI Assistant' }, path: 'iot-apps/gemini-chat/gemini-chat.html' },
+    { id: 'sensor-dashboard',   labels: { de: '📊 Sensor Dashboard', en: '📊 Sensor Dashboard' }, path: 'iot-apps/sensor-dashboard/sensor-dashboard.html' },
 ];
 
 function renderHeader(config) {
