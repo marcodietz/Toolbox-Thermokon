@@ -1,0 +1,824 @@
+﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uplink RF Analyzer – Thermokon</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg:         #f0f2f5;
+            --card:       #ffffff;
+            --primary:    #e63012;
+            --primary-dk: #b8220d;
+            --primary-lt: #fde8e4;
+            --accent:     #2563eb;
+            --ok:         #16a34a;
+            --ok-lt:      #dcfce7;
+            --warn:       #d97706;
+            --warn-lt:    #fef3c7;
+            --err:        #dc2626;
+            --err-lt:     #fee2e2;
+            --text:       #1e293b;
+            --muted:      #64748b;
+            --border:     #e2e8f0;
+            --radius:     12px;
+            --shadow:     0 2px 12px rgba(0,0,0,.08);
+        }
+
+        html, body {
+            min-height: 100%;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 15px;
+        }
+
+        /* ===== HEADER ===== */
+        .dash-header {
+            background: var(--card);
+            border-bottom: 3px solid var(--primary);
+            padding: 14px 24px;
+            display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+            box-shadow: var(--shadow);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .brand { font-size: 1.15rem; font-weight: 700; }
+        .brand span { color: var(--primary); }
+        .subtitle { font-size: .82rem; color: var(--muted); margin-top: 1px; }
+        .header-actions { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+        .btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;
+            font-size: .875rem; font-weight: 600; transition: background .15s, transform .1s;
+        }
+        .btn:active { transform: scale(.97); }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-dk); }
+        .btn-outline { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+        .btn-outline:hover { background: var(--primary-lt); }
+
+        /* ===== MAIN ===== */
+        .main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+
+        /* ===== UPLOAD ZONE ===== */
+        .upload-zone {
+            background: var(--card); border: 2.5px dashed var(--border);
+            border-radius: var(--radius); padding: 60px 40px;
+            text-align: center; cursor: pointer;
+            transition: border-color .2s, background .2s; margin-bottom: 28px;
+        }
+        .upload-zone:hover, .upload-zone.drag-over { border-color: var(--primary); background: var(--primary-lt); }
+        .upload-icon { font-size: 3rem; margin-bottom: 14px; }
+        .upload-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; }
+        .upload-hint { font-size: .875rem; color: var(--muted); }
+        #fileInput { display: none; }
+
+        /* ===== SECTION LABEL ===== */
+        .section-label {
+            font-size: .72rem; font-weight: 800;
+            text-transform: uppercase; letter-spacing: .1em;
+            color: var(--muted); margin: 28px 0 12px;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .section-label::after { content:''; flex:1; height:1px; background:var(--border); }
+
+        /* ===== KPI CARDS ===== */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 14px; margin-bottom: 4px;
+        }
+        .kpi-card {
+            background: var(--card); border-radius: var(--radius);
+            padding: 18px 20px; box-shadow: var(--shadow);
+            border-left: 4px solid var(--primary);
+        }
+        .kpi-card.ok     { border-left-color: var(--ok); }
+        .kpi-card.warn   { border-left-color: var(--warn); }
+        .kpi-card.accent { border-left-color: var(--accent); }
+        .kpi-card.purple { border-left-color: #7c3aed; }
+        .kpi-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:4px; }
+        .kpi-value { font-size:1.9rem; font-weight:800; line-height:1.1; }
+        .kpi-unit  { font-size:.85rem; font-weight:400; color:var(--muted); margin-left:3px; }
+        .kpi-sub   { font-size:.78rem; color:var(--muted); margin-top:4px; }
+        .kpi-badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:.75rem; font-weight:700; margin-top:4px; }
+        .kpi-badge.good { background:var(--ok-lt);   color:#15803d; }
+        .kpi-badge.fair { background:var(--warn-lt); color:#b45309; }
+        .kpi-badge.poor { background:var(--err-lt);  color:#b91c1c; }
+
+        /* ===== CHART GRID ===== */
+        .chart-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:4px; }
+        .chart-grid.three { grid-template-columns:1fr 1fr 1fr; }
+        @media (max-width:1100px) { .chart-grid.three { grid-template-columns:1fr 1fr; } }
+        @media (max-width:700px)  { .chart-grid, .chart-grid.three { grid-template-columns:1fr; } }
+        .chart-card { background:var(--card); border-radius:var(--radius); padding:18px 20px; box-shadow:var(--shadow); }
+        .chart-card.wide { grid-column:1/-1; }
+        .card-title { font-size:.875rem; font-weight:700; color:var(--text); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+        .card-title .icon { font-size:1rem; }
+        .chart-wrap      { position:relative; height:240px; }
+        .chart-wrap.tall { height:300px; }
+
+        /* ===== TABLE ===== */
+        .table-card { background:var(--card); border-radius:var(--radius); padding:18px 20px; box-shadow:var(--shadow); margin-bottom:4px; overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; font-size:.875rem; }
+        thead th {
+            text-align:left; padding:9px 12px; background:#f8fafc;
+            color:var(--muted); font-size:.72rem; font-weight:700;
+            text-transform:uppercase; letter-spacing:.06em;
+            border-bottom:2px solid var(--border); white-space:nowrap;
+            cursor:pointer; user-select:none;
+        }
+        thead th:hover { color:var(--text); }
+        tbody tr { border-bottom:1px solid var(--border); }
+        tbody tr:last-child { border-bottom:none; }
+        tbody tr:hover { background:#f8fafc; }
+        tbody td { padding:9px 12px; }
+        .badge { display:inline-block; padding:2px 9px; border-radius:999px; font-size:.75rem; font-weight:700; }
+        .badge-ok     { background:var(--ok-lt);   color:#15803d; }
+        .badge-warn   { background:var(--warn-lt); color:#b45309; }
+        .badge-err    { background:var(--err-lt);  color:#b91c1c; }
+        .sf-chip { display:inline-block; padding:2px 8px; border-radius:6px; font-size:.78rem; font-weight:700; border:1.5px solid; }
+        .mini-bar { display:flex; align-items:center; gap:6px; font-size:.8rem; }
+        .mini-bar-track { flex:1; min-width:40px; max-width:90px; background:var(--border); border-radius:999px; height:6px; overflow:hidden; }
+        .mini-bar-fill  { height:100%; border-radius:999px; }
+
+        /* ===== FILE INFO BAR ===== */
+        .file-info-bar {
+            background:var(--card); border-radius:var(--radius);
+            padding:10px 16px; margin-bottom:4px;
+            box-shadow:var(--shadow);
+            display:flex; align-items:center; gap:10px;
+            font-size:.85rem; color:var(--muted); flex-wrap:wrap;
+        }
+        .file-info-bar strong { color:var(--text); }
+        .file-info-bar .dot { width:8px; height:8px; border-radius:50%; background:var(--ok); flex-shrink:0; }
+
+        /* ===== FILTER ROW ===== */
+        .filter-row { display:flex; gap:10px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+        .filter-row label { font-size:.78rem; color:var(--muted); font-weight:600; }
+        .filter-row select, .filter-row input[type=text] {
+            padding:5px 10px; border-radius:8px; border:1.5px solid var(--border);
+            font-size:.85rem; color:var(--text); background:var(--card);
+        }
+        .filter-row select:focus, .filter-row input[type=text]:focus { outline:none; border-color:var(--primary); }
+
+        .hidden { display:none !important; }
+        footer { text-align:center; padding:20px; font-size:.78rem; color:var(--muted); }
+    </style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<div class="dash-header">
+    <div>
+        <div class="brand">Thermokon <span>Uplink RF Analyzer</span></div>
+        <div class="subtitle">RSSI · SNR · Spreading Factor – LoRaWAN Uplink Analyse</div>
+    </div>
+    <div class="header-actions">
+        <button class="btn btn-outline hidden" id="clearBtn" onclick="clearData()">↺ Zurücksetzen</button>
+        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">📂 CSV laden</button>
+        <input type="file" id="fileInput" accept=".csv" onchange="handleFile(this.files[0])">
+    </div>
+</div>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+
+    <!-- Upload Zone -->
+    <div class="upload-zone" id="uploadZone"
+         onclick="document.getElementById('fileInput').click()"
+         ondragover="event.preventDefault();this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="event.preventDefault();this.classList.remove('drag-over');handleFile(event.dataTransfer.files[0])">
+        <div class="upload-icon">📡</div>
+        <div class="upload-title">LoRaWAN Uplink CSV hier ablegen</div>
+        <div class="upload-hint">oder klicken · CSV-Export aus TTN / ChirpStack / Actility</div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="hidden">
+
+        <div class="file-info-bar">
+            <span class="dot"></span><span id="fileInfoText">–</span>
+        </div>
+
+        <!-- KPIs -->
+        <div class="section-label">Übersicht</div>
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Geräte</div>
+                <div class="kpi-value" id="kpiDevices">–</div>
+                <div class="kpi-sub" id="kpiUplinks">–</div>
+            </div>
+            <div class="kpi-card accent">
+                <div class="kpi-label">Ø RSSI</div>
+                <div class="kpi-value" id="kpiRSSI">–</div>
+                <div id="kpiRSSIBadge"></div>
+            </div>
+            <div class="kpi-card ok">
+                <div class="kpi-label">Ø SNR</div>
+                <div class="kpi-value" id="kpiSNR">–</div>
+                <div id="kpiSNRBadge"></div>
+            </div>
+            <div class="kpi-card purple">
+                <div class="kpi-label">Häufigster SF</div>
+                <div class="kpi-value" id="kpiSF">–</div>
+                <div class="kpi-sub" id="kpiSFsub">–</div>
+            </div>
+            <div class="kpi-card warn">
+                <div class="kpi-label">Zeitraum</div>
+                <div class="kpi-value" id="kpiDuration">–</div>
+                <div class="kpi-sub" id="kpiTimeRange">–</div>
+            </div>
+        </div>
+
+        <!-- Signal pro Gerät -->
+        <div class="section-label">Signal pro Gerät</div>
+        <div class="chart-grid">
+            <div class="chart-card">
+                <div class="card-title"><span class="icon">📶</span> Ø RSSI pro Gerät (dBm)</div>
+                <div class="chart-wrap"><canvas id="chartRSSI"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="card-title"><span class="icon">〰️</span> Ø SNR pro Gerät (dB)</div>
+                <div class="chart-wrap"><canvas id="chartSNR"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Spreading Factor -->
+        <div class="section-label">Spreading Factor &amp; Datenrate</div>
+        <div class="chart-grid three">
+            <div class="chart-card">
+                <div class="card-title"><span class="icon">🔢</span> SF-Verteilung (alle Uplinks)</div>
+                <div class="chart-wrap"><canvas id="chartSFDist"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="card-title"><span class="icon">🔢</span> SF pro Gerät (gestapelt)</div>
+                <div class="chart-wrap"><canvas id="chartSFDevice"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="card-title"><span class="icon">🗼</span> Ø Gateways pro Gerät</div>
+                <div class="chart-wrap"><canvas id="chartGW"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Zeitverlauf -->
+        <div class="section-label">Zeitverlauf</div>
+        <div class="chart-grid">
+            <div class="chart-card wide">
+                <div class="card-title">
+                    <span class="icon">📈</span> RSSI &amp; SNR über Zeit
+                    <select id="timeDevice" onchange="renderTimeline()" style="margin-left:auto;padding:4px 8px;border-radius:6px;border:1.5px solid var(--border);font-size:.8rem;">
+                        <option value="__all__">Alle Geräte (Mittelwert)</option>
+                    </select>
+                    <select id="timeGran" onchange="renderTimeline()" style="padding:4px 8px;border-radius:6px;border:1.5px solid var(--border);font-size:.8rem;">
+                        <option value="5">5 Min</option>
+                        <option value="15" selected>15 Min</option>
+                        <option value="30">30 Min</option>
+                        <option value="60">1 Std</option>
+                    </select>
+                </div>
+                <div class="chart-wrap tall"><canvas id="chartTimeline"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Verteilungsanalyse -->
+        <div class="section-label">Verteilungsanalyse (Histogramme)</div>
+        <div class="chart-grid">
+            <div class="chart-card">
+                <div class="card-title">
+                    <span class="icon">📊</span> RSSI Verteilung
+                    <select id="histDevice" onchange="renderHistogram()" style="margin-left:auto;padding:4px 8px;border-radius:6px;border:1.5px solid var(--border);font-size:.8rem;">
+                        <option value="__all__">Alle Geräte</option>
+                    </select>
+                </div>
+                <div class="chart-wrap"><canvas id="chartHistRSSI"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="card-title">
+                    <span class="icon">📊</span> SNR Verteilung
+                    <select id="histDeviceSNR" onchange="renderHistogramSNR()" style="margin-left:auto;padding:4px 8px;border-radius:6px;border:1.5px solid var(--border);font-size:.8rem;">
+                        <option value="__all__">Alle Geräte</option>
+                    </select>
+                </div>
+                <div class="chart-wrap"><canvas id="chartHistSNR"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Geräte-Tabelle -->
+        <div class="section-label">Geräte-Detailübersicht</div>
+        <div class="table-card">
+            <div class="filter-row">
+                <label>Filter:</label>
+                <input type="text" id="tableFilter" placeholder="Label oder Name …" oninput="renderTable()">
+                <label>Sortierung:</label>
+                <select id="tableSort" onchange="renderTable()">
+                    <option value="rssi-asc">RSSI ↑ (bester zuerst)</option>
+                    <option value="rssi-desc">RSSI ↓ (schlechtester)</option>
+                    <option value="snr-desc">SNR ↑ (bester zuerst)</option>
+                    <option value="snr-asc">SNR ↓ (schlechtester)</option>
+                    <option value="sf-desc">SF hoch → niedrig</option>
+                    <option value="total-desc">Uplinks ↓</option>
+                    <option value="label-asc">Label A→Z</option>
+                </select>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th onclick="sortBy('label-asc')">Label</th>
+                        <th>Name / Ort</th>
+                        <th onclick="sortBy('total-desc')">Uplinks</th>
+                        <th onclick="sortBy('rssi-asc')">Ø RSSI</th>
+                        <th>RSSI Min / Max</th>
+                        <th onclick="sortBy('snr-desc')">Ø SNR</th>
+                        <th onclick="sortBy('sf-desc')">Ø DR / SF</th>
+                        <th>Ø Gateways</th>
+                        <th>Letztes Paket</th>
+                        <th>Qualität</th>
+                    </tr>
+                </thead>
+                <tbody id="deviceTableBody"></tbody>
+            </table>
+        </div>
+
+    </div><!-- /dashboard -->
+</div><!-- /main -->
+
+<footer>Thermokon Sensortechnik GmbH · Uplink RF Analyzer</footer>
+
+<script>
+// ================================================================
+//  STATE
+// ================================================================
+let allRows   = [];
+let deviceMap = {};
+let charts    = {};
+
+// LoRaWAN EU868 DR → SF
+function drToSF(dr) {
+    const map = {0:'SF12',1:'SF11',2:'SF10',3:'SF9',4:'SF8',5:'SF7',6:'SF7 (250kHz)'};
+    return map[dr] !== undefined ? map[dr] : ('DR'+dr);
+}
+
+// ================================================================
+//  CSV PARSING
+// ================================================================
+function handleFile(file) {
+    if (!file || !file.name.toLowerCase().endsWith('.csv')) {
+        alert('Bitte eine gültige CSV-Datei auswählen.');
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+        try { parseCSV(e.target.result, file.name); }
+        catch(err) { alert('Fehler beim Lesen der CSV: ' + err.message); }
+    };
+    reader.readAsText(file, 'UTF-8');
+}
+
+function parseCSV(text, filename) {
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (!lines.length) throw new Error('Datei ist leer');
+    const header = lines[0].split(',').map(h => h.trim());
+    const idx = name => header.findIndex(h => h.toLowerCase() === name.toLowerCase());
+
+    const iLabel = idx('label');
+    const iLoss  = idx('Uplink Packet Loss Rate (%)');
+    const iDR    = idx('Uplink Data Rate');
+    const iRSSI  = idx('Uplink RSSI (dBm)');
+    const iSNR   = idx('Uplink SNR (dB)');
+    const iSig   = idx('Uplink Signal Strength');
+    const iGW    = idx('Number of Gateways');
+    const iTime  = idx('lastTime');
+    const iNotes = idx('notes');
+    const iTotal = idx('Total Sent');
+
+    allRows = [];
+    deviceMap = {};
+
+    for (let i = 1; i < lines.length; i++) {
+        const cols  = lines[i].split(',');
+        const label = cols[iLabel]?.trim();
+        if (!label) continue;
+        if (label.endsWith('- Total')) {
+            const lbl = label.replace(' - Total','').trim();
+            if (deviceMap[lbl]) deviceMap[lbl].total = parseInt(cols[iTotal]) || deviceMap[lbl].rows.length;
+            continue;
+        }
+        if (label === 'NULL') continue;
+
+        const row = {
+            label,
+            loss:   parseFloat(cols[iLoss])  || 0,
+            dr:     parseInt(cols[iDR])      || 0,
+            rssi:   parseInt(cols[iRSSI])    || 0,
+            snr:    parseFloat(cols[iSNR])   || 0,
+            signal: cols[iSig]?.trim()       || '',
+            gw:     parseInt(cols[iGW])      || 1,
+            time:   cols[iTime]?.trim()      || '',
+            notes:  cols[iNotes]?.trim()     || '',
+        };
+        allRows.push(row);
+        if (!deviceMap[label]) deviceMap[label] = { label, name:'', rows:[], total:0 };
+        if (row.notes && !deviceMap[label].name) deviceMap[label].name = row.notes;
+        deviceMap[label].rows.push(row);
+    }
+    for (const lbl in deviceMap) {
+        const d = deviceMap[lbl];
+        if (!d.total) d.total = d.rows.length;
+        if (!d.name) { const last = [...d.rows].reverse().find(r=>r.notes); if (last) d.name = last.notes; }
+    }
+    renderDashboard(filename);
+}
+
+// ================================================================
+//  RENDER DASHBOARD
+// ================================================================
+function renderDashboard(filename) {
+    document.getElementById('uploadZone').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    document.getElementById('clearBtn').classList.remove('hidden');
+
+    const devices  = Object.values(deviceMap);
+    const totalUp  = devices.reduce((s,d)=>s+d.total,0);
+    const rssiAll  = allRows.map(r=>r.rssi).filter(v=>v!==0);
+    const snrAll   = allRows.map(r=>r.snr).filter(v=>v!==0);
+    const avgRSSI  = rssiAll.length ? +(avgArr(rssiAll)).toFixed(1) : null;
+    const avgSNR   = snrAll.length  ? +(avgArr(snrAll)).toFixed(1)  : null;
+
+    const sfCount = {};
+    allRows.forEach(r => { const sf=drToSF(r.dr); sfCount[sf]=(sfCount[sf]||0)+1; });
+    const topSF = Object.entries(sfCount).sort((a,b)=>b[1]-a[1])[0];
+
+    const times  = allRows.map(r=>r.time).filter(Boolean).sort();
+    const tFirst = times[0]||'', tLast = times[times.length-1]||'';
+    let duration = '–';
+    if (tFirst && tLast) {
+        const ms = new Date(tLast)-new Date(tFirst);
+        const h  = Math.floor(ms/3600000), m = Math.floor((ms%3600000)/60000);
+        duration = h>0 ? h+'h '+m+'m' : m+'min';
+    }
+
+    document.getElementById('kpiDevices').textContent  = devices.length;
+    document.getElementById('kpiUplinks').textContent  = totalUp+' Uplinks gesamt';
+    document.getElementById('kpiRSSI').innerHTML       = avgRSSI!==null ? avgRSSI+'<span class="kpi-unit">dBm</span>' : '–';
+    document.getElementById('kpiSNR').innerHTML        = avgSNR!==null  ? avgSNR+'<span class="kpi-unit">dB</span>'  : '–';
+    if (avgRSSI!==null) { const rb=rssiQ(avgRSSI); document.getElementById('kpiRSSIBadge').innerHTML=`<span class="kpi-badge ${rb.cls}">${rb.label}</span>`; }
+    if (avgSNR!==null)  { const sb=snrQ(avgSNR);   document.getElementById('kpiSNRBadge').innerHTML=`<span class="kpi-badge ${sb.cls}">${sb.label}</span>`; }
+    document.getElementById('kpiSF').textContent       = topSF ? topSF[0] : '–';
+    document.getElementById('kpiSFsub').textContent    = topSF ? topSF[1]+' Uplinks ('+Math.round(topSF[1]/totalUp*100)+'%)' : '–';
+    document.getElementById('kpiDuration').textContent = duration;
+    document.getElementById('kpiTimeRange').textContent= tFirst&&tLast ? fmt(tFirst)+' – '+fmt(tLast) : '–';
+    document.getElementById('fileInfoText').innerHTML  =
+        '<strong>'+filename+'</strong> &nbsp;·&nbsp; '+devices.length+' Geräte &nbsp;·&nbsp; '+
+        totalUp+' Uplinks &nbsp;·&nbsp; RSSI Ø '+(avgRSSI??'–')+' dBm &nbsp;·&nbsp; SNR Ø '+(avgSNR??'–')+' dB';
+
+    populateDeviceSelects(devices);
+    renderRSSIChart(devices);
+    renderSNRChart(devices);
+    renderSFDist();
+    renderSFDevice(devices);
+    renderGWChart(devices);
+    renderTimeline();
+    renderHistogram();
+    renderHistogramSNR();
+    renderTable();
+}
+
+// ================================================================
+//  HELPERS
+// ================================================================
+function avgArr(arr) { return arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0; }
+function rssiQ(v) {
+    if (v>=-80)  return {cls:'good',label:'Gut (≥-80 dBm)'};
+    if (v>=-100) return {cls:'fair',label:'Mittel'};
+    return              {cls:'poor',label:'Schwach (<-100 dBm)'};
+}
+function snrQ(v) {
+    if (v>=5)  return {cls:'good',label:'Sehr gut (≥5 dB)'};
+    if (v>=-5) return {cls:'fair',label:'Ausreichend'};
+    return            {cls:'poor',label:'Kritisch (<-5 dB)'};
+}
+function fmt(t) {
+    if (!t) return '–';
+    const m = t.match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{2}:\d{2})/);
+    return m ? m[3]+'.'+m[2]+'. '+m[4] : t;
+}
+function destroyChart(id) { if(charts[id]){charts[id].destroy();delete charts[id];} }
+function sfColor(sf) {
+    const map={'SF7':'#16a34a','SF8':'#2563eb','SF9':'#d97706','SF10':'#9333ea','SF11':'#dc2626','SF12':'#374151'};
+    return map[sf]||'#64748b';
+}
+function rssiColor(v) {
+    if (v===0||v===null) return '#94a3b8';
+    if (v>=-80)  return '#16a34a';
+    if (v>=-100) return '#d97706';
+    return '#dc2626';
+}
+function snrColor(v) {
+    if (v===0) return '#94a3b8';
+    if (v>=5)  return '#16a34a';
+    if (v>=-5) return '#d97706';
+    return '#dc2626';
+}
+function devLabel(d) { return d.name ? d.label+' – '+d.name : 'Gerät '+d.label; }
+function avgNZ(arr) { const v=arr.filter(x=>x!==0); return v.length ? avgArr(v) : 0; }
+
+function populateDeviceSelects(devices) {
+    const sorted = [...devices].sort((a,b)=>a.label.localeCompare(b.label,undefined,{numeric:true}));
+    const opts = sorted.map(d=>'<option value="'+d.label+'">'+devLabel(d)+'</option>').join('');
+    ['timeDevice','histDevice','histDeviceSNR'].forEach(id => {
+        const sel = document.getElementById(id);
+        const cur = sel.value;
+        sel.innerHTML = '<option value="__all__">Alle Geräte</option>'+opts;
+        if ([...sel.options].some(o=>o.value===cur)) sel.value=cur;
+    });
+}
+
+// ================================================================
+//  CHART: RSSI pro Gerät
+// ================================================================
+function renderRSSIChart(devices) {
+    destroyChart('chartRSSI');
+    const sorted = [...devices].sort((a,b)=>avgNZ(b.rows.map(r=>r.rssi))-avgNZ(a.rows.map(r=>r.rssi)));
+    const data   = sorted.map(d=>{ const v=d.rows.filter(r=>r.rssi!==0).map(r=>r.rssi); return v.length ? +avgArr(v).toFixed(1) : null; });
+    const minVal = Math.min(...data.filter(v=>v!==null))-5;
+    charts['chartRSSI'] = new Chart(document.getElementById('chartRSSI'),{
+        type:'bar',
+        data:{ labels:sorted.map(devLabel), datasets:[{label:'Ø RSSI (dBm)',data,backgroundColor:data.map(rssiColor),borderRadius:5,borderSkipped:false}] },
+        options:{ responsive:true,maintainAspectRatio:false,
+            plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.raw} dBm · ${rssiQ(ctx.raw).label}`}} },
+            scales:{ x:{grid:{display:false},ticks:{font:{size:10},maxRotation:30}},
+                     y:{min:minVal,grid:{color:'#f1f5f9'},ticks:{callback:v=>v+' dBm',font:{size:10}},title:{display:true,text:'RSSI (dBm)',font:{size:10}}} }
+        }
+    });
+}
+
+// ================================================================
+//  CHART: SNR pro Gerät
+// ================================================================
+function renderSNRChart(devices) {
+    destroyChart('chartSNR');
+    const sorted = [...devices].sort((a,b)=>avgNZ(b.rows.map(r=>r.snr))-avgNZ(a.rows.map(r=>r.snr)));
+    const data   = sorted.map(d=>{ const v=d.rows.filter(r=>r.snr!==0).map(r=>r.snr); return v.length ? +avgArr(v).toFixed(2) : null; });
+    charts['chartSNR'] = new Chart(document.getElementById('chartSNR'),{
+        type:'bar',
+        data:{ labels:sorted.map(devLabel), datasets:[{label:'Ø SNR (dB)',data,backgroundColor:data.map(snrColor),borderRadius:5,borderSkipped:false}] },
+        options:{ responsive:true,maintainAspectRatio:false,
+            plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.raw} dB · ${snrQ(ctx.raw).label}`}} },
+            scales:{ x:{grid:{display:false},ticks:{font:{size:10},maxRotation:30}},
+                     y:{grid:{color:'#f1f5f9'},ticks:{callback:v=>v+' dB',font:{size:10}},title:{display:true,text:'SNR (dB)',font:{size:10}}} }
+        }
+    });
+}
+
+// ================================================================
+//  CHART: SF Verteilung Doughnut
+// ================================================================
+function renderSFDist() {
+    destroyChart('chartSFDist');
+    const sfCount={};
+    allRows.forEach(r=>{ const sf=drToSF(r.dr); sfCount[sf]=(sfCount[sf]||0)+1; });
+    const order=['SF7','SF7 (250kHz)','SF8','SF9','SF10','SF11','SF12'];
+    const entries=Object.entries(sfCount).sort((a,b)=>order.indexOf(a[0])-order.indexOf(b[0]));
+    const total=entries.reduce((s,e)=>s+e[1],0);
+    charts['chartSFDist']=new Chart(document.getElementById('chartSFDist'),{
+        type:'doughnut',
+        data:{ labels:entries.map(e=>e[0]), datasets:[{data:entries.map(e=>e[1]),backgroundColor:entries.map(e=>sfColor(e[0])),borderWidth:2,borderColor:'#fff',hoverOffset:6}] },
+        options:{ responsive:true,maintainAspectRatio:false,
+            plugins:{ legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}},
+                      tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw} (${Math.round(ctx.raw/total*100)}%)`}} }
+        }
+    });
+}
+
+// ================================================================
+//  CHART: SF pro Gerät (gestapelt)
+// ================================================================
+function renderSFDevice(devices) {
+    destroyChart('chartSFDevice');
+    const sorted   = [...devices].sort((a,b)=>a.label.localeCompare(b.label,undefined,{numeric:true}));
+    const sfOrder  = ['SF7','SF8','SF9','SF10','SF11','SF12'];
+    const datasets = sfOrder.map(sf=>({
+        label:sf,
+        data:sorted.map(d=>d.rows.filter(r=>drToSF(r.dr)===sf).length),
+        backgroundColor:sfColor(sf),
+        borderRadius:2, borderSkipped:false,
+    })).filter(ds=>ds.data.some(v=>v>0));
+    charts['chartSFDevice']=new Chart(document.getElementById('chartSFDevice'),{
+        type:'bar',
+        data:{ labels:sorted.map(devLabel), datasets },
+        options:{ responsive:true,maintainAspectRatio:false,
+            plugins:{ legend:{position:'bottom',labels:{boxWidth:10,font:{size:10}}} },
+            scales:{ x:{stacked:true,grid:{display:false},ticks:{font:{size:10},maxRotation:30}},
+                     y:{stacked:true,grid:{color:'#f1f5f9'},ticks:{font:{size:10}}} }
+        }
+    });
+}
+
+// ================================================================
+//  CHART: Gateways
+// ================================================================
+function renderGWChart(devices) {
+    destroyChart('chartGW');
+    const sorted=[ ...devices].sort((a,b)=>avgArr(b.rows.map(r=>r.gw))-avgArr(a.rows.map(r=>r.gw)));
+    const data=sorted.map(d=>+avgArr(d.rows.map(r=>r.gw)).toFixed(2));
+    charts['chartGW']=new Chart(document.getElementById('chartGW'),{
+        type:'bar',
+        data:{ labels:sorted.map(devLabel), datasets:[{label:'Ø Gateways',data,backgroundColor:data.map(v=>v>=2?'#16a34a':v>=1.5?'#d97706':'#dc2626'),borderRadius:5,borderSkipped:false}] },
+        options:{ indexAxis:'y',responsive:true,maintainAspectRatio:false,
+            plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` Ø ${ctx.raw} Gateways`}} },
+            scales:{ x:{beginAtZero:true,grid:{color:'#f1f5f9'},ticks:{font:{size:10}}},
+                     y:{grid:{display:false},ticks:{font:{size:10}}} }
+        }
+    });
+}
+
+// ================================================================
+//  CHART: Timeline RSSI + SNR
+// ================================================================
+function renderTimeline() {
+    destroyChart('chartTimeline');
+    const granMin = parseInt(document.getElementById('timeGran').value);
+    const devSel  = document.getElementById('timeDevice').value;
+    const binMs   = granMin*60000;
+    const src     = devSel==='__all__' ? allRows : (deviceMap[devSel]?.rows||[]);
+    const times   = src.map(r=>r.time).filter(Boolean).map(t=>new Date(t));
+    if (!times.length) return;
+
+    const tMin  = Math.min(...times.map(t=>t.getTime()));
+    const tMax  = Math.max(...times.map(t=>t.getTime()));
+    const nBins = Math.ceil((tMax-tMin)/binMs)+1;
+    const rSums=new Array(nBins).fill(0), rCnt=new Array(nBins).fill(0);
+    const sSums=new Array(nBins).fill(0), sCnt=new Array(nBins).fill(0);
+
+    src.forEach(r=>{
+        if (!r.time) return;
+        const b=Math.floor((new Date(r.time).getTime()-tMin)/binMs);
+        if (b<0||b>=nBins) return;
+        if (r.rssi!==0){rSums[b]+=r.rssi;rCnt[b]++;}
+        if (r.snr!==0) {sSums[b]+=r.snr; sCnt[b]++;}
+    });
+
+    const rssiData=rSums.map((s,i)=>rCnt[i]?{x:new Date(tMin+i*binMs).toISOString(),y:+(s/rCnt[i]).toFixed(1)}:null).filter(Boolean);
+    const snrData =sSums.map((s,i)=>sCnt[i]?{x:new Date(tMin+i*binMs).toISOString(),y:+(s/sCnt[i]).toFixed(2)}:null).filter(Boolean);
+
+    charts['chartTimeline']=new Chart(document.getElementById('chartTimeline'),{
+        type:'line',
+        data:{ datasets:[
+            {label:'Ø RSSI (dBm)',data:rssiData,borderColor:'#e63012',backgroundColor:'#e6301220',fill:true,tension:0.3,pointRadius:3,borderWidth:2,yAxisID:'yR'},
+            {label:'Ø SNR (dB)', data:snrData, borderColor:'#2563eb',backgroundColor:'#2563eb15',fill:true,tension:0.3,pointRadius:3,borderWidth:2,yAxisID:'yS'},
+        ]},
+        options:{ responsive:true,maintainAspectRatio:false,
+            interaction:{mode:'index',intersect:false},
+            plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:11}}}},
+            scales:{
+                x:{type:'time',time:{unit:granMin>=60?'hour':'minute',tooltipFormat:'dd.MM HH:mm',displayFormats:{minute:'HH:mm',hour:'HH:mm'}},
+                   grid:{color:'#f1f5f9'},ticks:{maxTicksLimit:14,font:{size:10}}},
+                yR:{type:'linear',position:'left',grid:{color:'#f1f5f9'},
+                    ticks:{callback:v=>v+' dBm',font:{size:10}},title:{display:true,text:'RSSI (dBm)',color:'#e63012',font:{size:10}}},
+                yS:{type:'linear',position:'right',grid:{drawOnChartArea:false},
+                    ticks:{callback:v=>v+' dB',font:{size:10}},title:{display:true,text:'SNR (dB)',color:'#2563eb',font:{size:10}}},
+            }
+        }
+    });
+}
+
+// ================================================================
+//  HISTOGRAMS
+// ================================================================
+function buildHistogram(values, binSize) {
+    if (!values.length) return {labels:[],data:[]};
+    const mn=Math.floor(Math.min(...values)/binSize)*binSize;
+    const mx=Math.ceil(Math.max(...values)/binSize)*binSize;
+    const bins=[];
+    for (let b=mn; b<mx; b+=binSize)
+        bins.push({label:b+'…'+(b+binSize), count:values.filter(v=>v>=b&&v<b+binSize).length});
+    return {labels:bins.map(b=>b.label), data:bins.map(b=>b.count)};
+}
+
+function renderHistogram() {
+    destroyChart('chartHistRSSI');
+    const devSel=document.getElementById('histDevice').value;
+    const rows  =devSel==='__all__'?allRows:(deviceMap[devSel]?.rows||[]);
+    const vals  =rows.map(r=>r.rssi).filter(v=>v!==0);
+    if (!vals.length) return;
+    const {labels,data}=buildHistogram(vals,5);
+    charts['chartHistRSSI']=new Chart(document.getElementById('chartHistRSSI'),{
+        type:'bar',
+        data:{labels,datasets:[{label:'Uplinks',data,backgroundColor:labels.map(l=>rssiColor(parseInt(l)+2)),borderRadius:4}]},
+        options:{ responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.raw} Uplinks`}}},
+            scales:{ x:{grid:{display:false},ticks:{font:{size:10},maxRotation:45},title:{display:true,text:'RSSI (dBm)',font:{size:10}}},
+                     y:{grid:{color:'#f1f5f9'},ticks:{font:{size:10}},title:{display:true,text:'Anzahl',font:{size:10}}} }
+        }
+    });
+}
+
+function renderHistogramSNR() {
+    destroyChart('chartHistSNR');
+    const devSel=document.getElementById('histDeviceSNR').value;
+    const rows  =devSel==='__all__'?allRows:(deviceMap[devSel]?.rows||[]);
+    const vals  =rows.map(r=>r.snr).filter(v=>v!==0);
+    if (!vals.length) return;
+    const {labels,data}=buildHistogram(vals,2);
+    charts['chartHistSNR']=new Chart(document.getElementById('chartHistSNR'),{
+        type:'bar',
+        data:{labels,datasets:[{label:'Uplinks',data,backgroundColor:labels.map(l=>snrColor(parseFloat(l)+1)),borderRadius:4}]},
+        options:{ responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.raw} Uplinks`}}},
+            scales:{ x:{grid:{display:false},ticks:{font:{size:10},maxRotation:45},title:{display:true,text:'SNR (dB)',font:{size:10}}},
+                     y:{grid:{color:'#f1f5f9'},ticks:{font:{size:10}},title:{display:true,text:'Anzahl',font:{size:10}}} }
+        }
+    });
+}
+
+// ================================================================
+//  TABLE
+// ================================================================
+let currentSort='rssi-asc';
+function sortBy(col){ currentSort=col; document.getElementById('tableSort').value=col; renderTable(); }
+
+function renderTable() {
+    const filter=(document.getElementById('tableFilter').value||'').toLowerCase();
+    currentSort=document.getElementById('tableSort').value;
+    let devices=Object.values(deviceMap);
+    if (filter) devices=devices.filter(d=>d.label.toLowerCase().includes(filter)||d.name.toLowerCase().includes(filter));
+
+    devices.sort((a,b)=>{
+        if (currentSort==='rssi-asc')   return avgNZ(b.rows.map(r=>r.rssi))-avgNZ(a.rows.map(r=>r.rssi));
+        if (currentSort==='rssi-desc')  return avgNZ(a.rows.map(r=>r.rssi))-avgNZ(b.rows.map(r=>r.rssi));
+        if (currentSort==='snr-desc')   return avgNZ(b.rows.map(r=>r.snr))-avgNZ(a.rows.map(r=>r.snr));
+        if (currentSort==='snr-asc')    return avgNZ(a.rows.map(r=>r.snr))-avgNZ(b.rows.map(r=>r.snr));
+        if (currentSort==='sf-desc')    return avgNZ(b.rows.map(r=>r.dr))-avgNZ(a.rows.map(r=>r.dr));
+        if (currentSort==='total-desc') return b.total-a.total;
+        if (currentSort==='label-asc')  return a.label.localeCompare(b.label,undefined,{numeric:true});
+        return 0;
+    });
+
+    const tbody=document.getElementById('deviceTableBody');
+    tbody.innerHTML='';
+    devices.forEach(d=>{
+        const rVals=d.rows.map(r=>r.rssi).filter(v=>v!==0);
+        const sVals=d.rows.map(r=>r.snr).filter(v=>v!==0);
+        const avgR=rVals.length?+avgArr(rVals).toFixed(1):null;
+        const avgS=sVals.length?+avgArr(sVals).toFixed(2):null;
+        const minR=rVals.length?Math.min(...rVals):null;
+        const maxR=rVals.length?Math.max(...rVals):null;
+        const avgDR=d.rows.length?+(d.rows.reduce((s,r)=>s+r.dr,0)/d.rows.length).toFixed(1):0;
+        const avgGW=+avgArr(d.rows.map(r=>r.gw)).toFixed(2);
+        const last=d.rows.at(-1)?.time||'';
+        const rq=avgR!==null?rssiQ(avgR):null;
+        const sfTxt=drToSF(Math.round(avgDR));
+        const sfC=sfColor(sfTxt);
+        const rPct=avgR!==null?Math.max(0,Math.min(100,((avgR+130)/80)*100)):0;
+        const sPct=avgS!==null?Math.max(0,Math.min(100,((avgS+20)/40)*100)):0;
+
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+          <td><strong>${d.label}</strong></td>
+          <td>${d.name||'<span style="color:var(--muted)">–</span>'}</td>
+          <td>${d.total}</td>
+          <td>
+            <div class="mini-bar">
+              <span style="min-width:70px">${avgR!==null?avgR+' dBm':'–'}</span>
+              <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${rPct}%;background:${rssiColor(avgR)}"></div></div>
+            </div>
+          </td>
+          <td style="font-size:.8rem;color:var(--muted)">${minR!==null?minR+' / '+maxR+' dBm':'–'}</td>
+          <td>
+            <div class="mini-bar">
+              <span style="min-width:60px">${avgS!==null?avgS+' dB':'–'}</span>
+              <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${sPct}%;background:${snrColor(avgS)}"></div></div>
+            </div>
+          </td>
+          <td>
+            <span class="sf-chip" style="color:${sfC};border-color:${sfC}40;background:${sfC}15">${sfTxt}</span>
+            <span style="font-size:.72rem;color:var(--muted);margin-left:4px">DR${Math.round(avgDR)}</span>
+          </td>
+          <td>${avgGW}</td>
+          <td style="font-size:.78rem;color:var(--muted);white-space:nowrap">${fmt(last)}</td>
+          <td>${rq?`<span class="badge badge-${rq.cls==='good'?'ok':rq.cls==='fair'?'warn':'err'}">${rq.label}</span>`:'–'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+// ================================================================
+//  RESET
+// ================================================================
+function clearData() {
+    allRows=[]; deviceMap={};
+    Object.keys(charts).forEach(k=>{charts[k].destroy();delete charts[k];});
+    document.getElementById('uploadZone').classList.remove('hidden');
+    document.getElementById('dashboard').classList.add('hidden');
+    document.getElementById('clearBtn').classList.add('hidden');
+    document.getElementById('fileInput').value='';
+}
+</script>
+</body>
+</html>

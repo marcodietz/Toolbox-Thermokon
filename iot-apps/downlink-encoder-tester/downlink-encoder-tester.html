@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Downlink Encoder Tester</title>
+    <link rel="stylesheet" href="../../style.css">
+    <script src="../../assets/header.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+
+        .container {
+            max-width: 1400px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .panel.full-width {
+            grid-column: 1 / -1;
+        }
+        .section-title {
+            margin: 0 0 4px 0;
+            padding: 10px 0;
+            border-top: 3px solid #d32f2f;
+            border-bottom: 1px solid #e0e0e0;
+            font-weight: 700;
+            font-size: 16px;
+            color: #d32f2f;
+            letter-spacing: 0.5px;
+        }
+        label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #d32f2f;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        textarea, input[type="text"], input[type="number"] {
+            background: #fafafa;
+            color: #333;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 10px;
+            font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+            font-size: 13px;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+        textarea:focus, input:focus {
+            border-color: #007bff;
+        }
+        #encoderCode {
+            flex: 1;
+            min-height: 380px;
+        }
+        #inputJson {
+            min-height: 180px;
+            flex: 1;
+        }
+        #outputArea {
+            min-height: 120px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            border-left: 4px solid #d32f2f;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            resize: vertical;
+        }
+        .input-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex: 1;
+        }
+        .input-group.small {
+            flex: 0 0 100px;
+        }
+        .input-group.xsmall {
+            flex: 0 0 80px;
+        }
+        input[type="text"], input[type="number"] {
+            height: 42px;
+        }
+        button {
+            height: 42px;
+            padding: 0 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            border-radius: 5px;
+            border: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            margin-top: 0;
+        }
+        .btn-primary {
+            background: #d32f2f;
+            color: white;
+        }
+        .btn-primary:hover { background: #b71c1c; box-shadow: 0 4px 12px rgba(211,47,47,0.3); }
+        .btn-secondary {
+            background: white;
+            color: #333;
+            border: 2px solid #ddd;
+        }
+        .btn-secondary:hover { border-color: #007bff; color: #007bff; }
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        .btn-success:hover { background: #218838; }
+
+        /* Library bar */
+        .library-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .library-bar label { margin-bottom: 0; flex-shrink: 0; }
+        .library-select {
+            height: 34px;
+            padding: 0 8px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            background: white;
+            cursor: pointer;
+            outline: none;
+            min-width: 200px;
+            max-width: 340px;
+            transition: border-color 0.2s;
+        }
+        .library-select:focus, .library-select:hover { border-color: #007bff; }
+        .library-actions {
+            display: flex;
+            gap: 5px;
+            margin-left: auto;
+        }
+        .btn-lib {
+            height: 34px;
+            padding: 0 10px;
+            font-size: 12px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-lib-save { background: #28a745; color: white; }
+        .btn-lib-save:hover { background: #218838; }
+        .btn-lib-new { background: #007bff; color: white; }
+        .btn-lib-new:hover { background: #0056b3; }
+        .btn-lib-rename { background: #e9ecef; color: #555; }
+        .btn-lib-rename:hover { background: #dee2e6; color: #333; }
+        .btn-lib-delete { background: #e9ecef; color: #888; }
+        .btn-lib-delete:hover { background: #f8d7da; color: #d32f2f; }
+        .lib-slot-count {
+            font-size: 11px;
+            color: #aaa;
+            font-style: italic;
+            white-space: nowrap;
+        }
+
+        /* Status / Result */
+        .status {
+            font-size: 13px;
+            min-height: 1.4em;
+            font-family: monospace;
+            margin-top: 4px;
+        }
+        .status.error { color: #d32f2f; font-weight: 600; }
+        .status.success { color: #28a745; font-weight: 600; }
+        .status.warn { color: #e67e22; font-weight: 600; }
+
+        /* Sticky output */
+        .sticky-output {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: #f5f5f5;
+            padding: 12px 0 8px 0;
+            margin-bottom: 15px;
+            max-width: 1400px;
+        }
+        .sticky-output-inner {
+            background: white;
+            border-radius: 10px;
+            padding: 14px 18px;
+        }
+        .sticky-output h3 {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            color: #d32f2f;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 700;
+        }
+        .output-box {
+            padding: 13px 16px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-left: 4px solid #d32f2f;
+            color: #333;
+            font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+            word-break: break-all;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            font-size: 15px;
+            line-height: 1.8;
+            min-height: 48px;
+        }
+        .output-placeholder { color: #aaa; font-style: italic; }
+        .byte-chip {
+            display: inline-block;
+            background: #e8f0fe;
+            color: #1a73e8;
+            border-radius: 4px;
+            padding: 1px 6px;
+            margin: 2px 3px 2px 0;
+            font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+            font-size: 14px;
+            font-weight: 700;
+            border: 1px solid #c5d7fc;
+        }
+        .byte-chip:hover { background: #d0e2ff; cursor: default; }
+        .output-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .meta-tag {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        .meta-fport { background: #fff3e0; color: #e67e22; border: 1px solid #ffe0b2; }
+        .meta-len   { background: #e8f5e9; color: #388e3c; border: 1px solid #c8e6c9; }
+        .meta-hex   { background: #f3e5f5; color: #7b1fa2; border: 1px solid #e1bee7; }
+        .meta-warn  { background: #fff8e1; color: #f57f17; border: 1px solid #ffe082; }
+        .meta-err   { background: #fce4ec; color: #c62828; border: 1px solid #ffcdd2; }
+        .action-bar {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .action-bar button { height: 34px; margin-top: 0; font-size: 13px; padding: 0 14px; }
+
+        /* History */
+        .history-container { position: relative; display: inline-block; }
+        .btn-history {
+            height: 42px;
+            padding: 0 14px;
+            background: white;
+            color: #555;
+            border: 2px solid #ddd;
+            font-size: 13px;
+        }
+        .btn-history:hover { border-color: #007bff; color: #007bff; }
+        .history-dropdown {
+            display: none;
+            position: absolute;
+            top: 46px;
+            right: 0;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            z-index: 300;
+            min-width: 340px;
+            max-width: 520px;
+            overflow: hidden;
+        }
+        .history-dropdown.open { display: block; }
+        .history-dropdown .history-title {
+            padding: 10px 14px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #d32f2f;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #eee;
+        }
+        .history-dropdown .history-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.15s;
+            font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+            font-size: 12px;
+            color: #333;
+        }
+        .history-dropdown .history-item:last-child { border-bottom: none; }
+        .history-dropdown .history-item:hover { background: #f5f5f5; color: #007bff; }
+        .history-item-bytes { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .history-item-meta { font-size: 10px; color: #aaa; white-space: nowrap; font-family: Arial, sans-serif; }
+        .history-empty { padding: 14px; text-align: center; color: #aaa; font-size: 13px; font-style: italic; }
+
+        /* Byte table */
+        .byte-table-wrap {
+            overflow-x: auto;
+            margin-top: 6px;
+        }
+        .byte-table {
+            border-collapse: collapse;
+            font-family: 'Cascadia Code', 'Fira Code', Consolas, monospace;
+            font-size: 13px;
+            min-width: 100%;
+        }
+        .byte-table th {
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            padding: 5px 10px;
+            text-align: center;
+            font-size: 11px;
+            color: #555;
+            text-transform: uppercase;
+        }
+        .byte-table td {
+            border: 1px solid #ddd;
+            padding: 6px 10px;
+            text-align: center;
+        }
+        .byte-table .td-index { color: #999; }
+        .byte-table .td-hex { color: #1a73e8; font-weight: 700; }
+        .byte-table .td-dec { color: #555; }
+        .byte-table .td-bin { color: #888; font-size: 11px; }
+        .byte-table .td-ascii { color: #7b1fa2; }
+
+        /* Hint */
+        .hint { font-size: 12px; color: #888; font-style: italic; }
+
+        /* Example templates */
+        .template-bar {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .template-bar label { margin-bottom: 0; }
+        .btn-template {
+            height: 30px;
+            padding: 0 10px;
+            font-size: 12px;
+            border-radius: 5px;
+            background: #e9ecef;
+            color: #444;
+            border: 1px solid #ccc;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+        .btn-template:hover { background: #d32f2f; color: white; border-color: #d32f2f; }
+
+        /* Highlight warnings/errors in output */
+        .warn-line { color: #e67e22; }
+        .err-line  { color: #d32f2f; font-weight: 700; }
+
+        @media (max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+            #encoderCode { min-height: 250px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Sticky Input/Output Bar -->
+<div class="sticky-output" id="stickyBar">
+    <div class="sticky-output-inner">
+        <div class="input-row">
+            <div class="input-group">
+                <label for="inputJson" id="lbl-input-data">Input-Daten (JSON)</label>
+                <textarea id="inputJsonInline" spellcheck="false" style="font-family: 'Cascadia Code', monospace; font-size: 13px; min-height: 120px;"></textarea>
+            </div>
+            <div class="input-group xsmall">
+                <label for="fPortInput">fPort</label>
+                <input type="number" id="fPortInput" value="1" min="1" max="255">
+            </div>
+            <button class="btn-primary" id="btn-encode" onclick="runEncoder()">▶ Encode</button>
+            <div class="history-container">
+                <button class="btn-history" onclick="toggleHistory()" id="btn-history">🕘 Historie</button>
+                <div class="history-dropdown" id="historyDropdown">
+                    <div class="history-title" id="history-title">Letzte Encodings</div>
+                    <div id="historyList"><div class="history-empty" id="history-empty">Noch keine Encodings.</div></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultBox" class="output-box" style="margin-top: 12px;">
+            <span class="output-placeholder" id="result-placeholder">Ergebnis erscheint hier...</span>
+        </div>
+        <div class="output-meta" id="outputMeta" style="display:none;"></div>
+
+        <div class="action-bar">
+            <button class="btn-secondary" id="btn-copy-hex" onclick="copyHex()" disabled>📋 Hex kopieren</button>
+            <button class="btn-secondary" id="btn-copy-bytes" onclick="copyBytes()" disabled>📋 Bytes kopieren</button>
+            <button class="btn-secondary" id="btn-copy-b64" onclick="copyBase64()" disabled>📋 Base64 kopieren</button>
+            <span id="copyStatus" style="font-size:12px; color:#28a745; font-weight:600; opacity:0; transition:opacity 0.3s;"></span>
+        </div>
+    </div>
+</div>
+
+<!-- Main Grid -->
+<div class="container">
+
+    <!-- Left Panel: Encoder Code -->
+    <div class="panel">
+        <div class="section-title" id="lbl-encoder-title">Encoder Funktion (JavaScript)</div>
+
+        <div class="library-bar">
+            <label id="lbl-library">📚 Bibliothek</label>
+            <select class="library-select" id="librarySelect" onchange="loadLibrarySlot(this.value)">
+                <option value="-1">— Neuer Encoder (nicht gespeichert) —</option>
+            </select>
+            <span class="lib-slot-count" id="libSlotCount"></span>
+            <div class="library-actions">
+                <button class="btn-lib btn-lib-save" onclick="saveToLibrary()" id="btn-lib-save">💾 Speichern</button>
+                <button class="btn-lib btn-lib-new" onclick="newEncoder()" id="btn-lib-new">＋ Neu</button>
+                <button class="btn-lib btn-lib-rename" onclick="renameLibrarySlot()" id="btn-lib-rename">✏️</button>
+                <button class="btn-lib btn-lib-delete" onclick="deleteLibrarySlot()" id="btn-lib-delete">🗑️</button>
+            </div>
+        </div>
+
+        <div class="template-bar">
+            <label id="lbl-templates">Vorlagen:</label>
+            <button class="btn-template" onclick="loadTemplate('lorawan')">LoRaWAN Codec</button>
+            <button class="btn-template" onclick="loadTemplate('simple')" id="btn-template-simple">Einfach</button>
+            <button class="btn-template" onclick="loadTemplate('thermokon')">Thermokon JOY</button>
+            <button class="btn-template" onclick="loadTemplate('modbus')">Modbus-Style</button>
+            <button class="btn-template" onclick="loadTemplate('ttn')">TTN v3</button>
+        </div>
+
+        <textarea id="encoderCode" spellcheck="false"></textarea>
+        <div class="hint" id="lbl-hint-code">Die Funktion erhält ein <code>input</code>-Objekt mit <code>input.data</code> und <code>input.fPort</code>. Rückgabe: <code>{ bytes: [...], fPort: 1, errors: [], warnings: [] }</code></div>
+    </div>
+
+    <!-- Right Panel: Input JSON + Output Details -->
+    <div class="panel">
+        <div class="section-title" id="lbl-output-title">Ergebnis Detail</div>
+
+        <label id="lbl-input-json-full">Input JSON (erweiterter Editor)</label>
+        <textarea id="inputJsonFull" spellcheck="false" style="min-height:260px;" placeholder='{"setpoint": 21.5}'></textarea>
+        <div class="hint" id="lbl-hint-json">Inhalt wird als <code>input.data</code> übergeben. Einfache Eingabe oben überschreibt dieses Feld.</div>
+
+        <label id="lbl-output-raw">Output (JSON)</label>
+        <textarea id="outputArea" readonly></textarea>
+        <div id="statusMsg" class="status"></div>
+
+        <div id="byteTableSection" style="display:none;">
+            <label id="lbl-byte-table">Byte-Analyse</label>
+            <div class="byte-table-wrap">
+                <table class="byte-table" id="byteTable">
+                    <thead>
+                        <tr>
+                            <th id="th-idx">Index</th>
+                            <th id="th-hex">Hex</th>
+                            <th id="th-dec">Dez</th>
+                            <th id="th-bin">Binär</th>
+                            <th id="th-ascii">ASCII</th>
+                        </tr>
+                    </thead>
+                    <tbody id="byteTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// =====================================================================
+//  HEADER
+// =====================================================================
+renderHeader({
+    title: 'Downlink Encoder Tester',
+    activeId: 'downlink-encoder-tester',
+    basePath: '../../',
+    showLanguage: true,
+});
+
+// Sticky-bar top adjustment
+function updateStickyTop() {
+    const topBar = document.querySelector('.top-bar');
+    const sticky  = document.getElementById('stickyBar');
+    if (topBar && sticky) sticky.style.top = topBar.offsetHeight + 'px';
+}
+window.addEventListener('load', updateStickyTop);
+window.addEventListener('resize', updateStickyTop);
+
+// =====================================================================
+//  TRANSLATIONS
+// =====================================================================
+const T = {
+    de: {
+        pageTitle:      'Downlink Encoder Tester',
+        lblInputData:   'Input-Daten (JSON)',
+        btnEncode:      '▶ Encode',
+        btnHistory:     '🕘 Historie',
+        historyTitle:   'Letzte Encodings',
+        historyEmpty:   'Noch keine Encodings.',
+        resultPH:       'Ergebnis erscheint hier...',
+        btnCopyHex:     '📋 Hex kopieren',
+        btnCopyBytes:   '📋 Bytes kopieren',
+        btnCopyB64:     '📋 Base64 kopieren',
+        encoderTitle:   'Encoder Funktion (JavaScript)',
+        lblLibrary:     '📚 Bibliothek',
+        btnSave:        '💾 Speichern',
+        btnNew:         '＋ Neu',
+        lblTemplates:   'Vorlagen:',
+        hintCode:       'Die Funktion erhält ein <code>input</code>-Objekt mit <code>input.data</code> und <code>input.fPort</code>. Rückgabe: <code>{ bytes: [...], fPort: 1, errors: [], warnings: [] }</code>',
+        outputTitle:    'Ergebnis Detail',
+        lblInputFull:   'Input JSON (erweiterter Editor)',
+        hintJson:       'Inhalt wird als <code>input.data</code> übergeben. Einfache Eingabe oben überschreibt dieses Feld.',
+        lblOutputRaw:   'Output (JSON)',
+        lblByteTable:   'Byte-Analyse',
+        thIdx: 'Index', thHex: 'Hex', thDec: 'Dez', thBin: 'Binär', thAscii: 'ASCII',
+        errNoFunc:      'Keine Encoder-Funktion gefunden (erwartet: encodeDownlink oder encode).',
+        errJsonParse:   'Ungültiges JSON in Input-Daten.',
+        errException:   'Fehler beim Ausführen: ',
+        errNoBytes:     'Encoder gab kein gültiges bytes-Array zurück.',
+        saved:          'Gespeichert!',
+        copied:         'Kopiert!',
+        noEncoderSaved: '— Neuer Encoder (nicht gespeichert) —',
+        confirmDelete:  'Encoder wirklich löschen?',
+        renamePrompt:   'Neuer Name für den Encoder:',
+        newEncoderName: 'Encoder',
+        titleSave:      'Speichern',
+        titleNew:       'Neuer Encoder',
+        titleRename:    'Umbenennen',
+        titleDelete:    'Löschen',
+        phEncoderCode:  '// Encoder-Funktion hier eingeben...',
+        phOutputArea:   '// Ergebnis erscheint hier...',
+        phInputInline:  'z.B. {"setpoint": 21.5, "mode": 1}',
+        btnSimple:      'Einfach',
+    },
+    en: {
+        pageTitle:      'Downlink Encoder Tester',
+        lblInputData:   'Input Data (JSON)',
+        btnEncode:      '▶ Encode',
+        btnHistory:     '🕘 History',
+        historyTitle:   'Recent Encodings',
+        historyEmpty:   'No encodings yet.',
+        resultPH:       'Result appears here...',
+        btnCopyHex:     '📋 Copy Hex',
+        btnCopyBytes:   '📋 Copy Bytes',
+        btnCopyB64:     '📋 Copy Base64',
+        encoderTitle:   'Encoder Function (JavaScript)',
+        lblLibrary:     '📚 Library',
+        btnSave:        '💾 Save',
+        btnNew:         '＋ New',
+        lblTemplates:   'Templates:',
+        hintCode:       'The function receives an <code>input</code> object with <code>input.data</code> and <code>input.fPort</code>. Returns: <code>{ bytes: [...], fPort: 1, errors: [], warnings: [] }</code>',
+        outputTitle:    'Result Detail',
+        lblInputFull:   'Input JSON (extended editor)',
+        hintJson:       'Content is passed as <code>input.data</code>. The inline input above overwrites this field.',
+        lblOutputRaw:   'Output (JSON)',
+        lblByteTable:   'Byte Analysis',
+        thIdx: 'Index', thHex: 'Hex', thDec: 'Dec', thBin: 'Binary', thAscii: 'ASCII',
+        errNoFunc:      'No encoder function found (expected: encodeDownlink or encode).',
+        errJsonParse:   'Invalid JSON in input data.',
+        errException:   'Error during execution: ',
+        errNoBytes:     'Encoder did not return a valid bytes array.',
+        saved:          'Saved!',
+        copied:         'Copied!',
+        noEncoderSaved: '— New Encoder (unsaved) —',
+        confirmDelete:  'Really delete this encoder?',
+        renamePrompt:   'New name for the encoder:',
+        newEncoderName: 'Encoder',
+        titleSave:      'Save',
+        titleNew:       'New Encoder',
+        titleRename:    'Rename',
+        titleDelete:    'Delete',
+        phEncoderCode:  '// Enter encoder function here...',
+        phOutputArea:   '// Result appears here...',
+        phInputInline:  'e.g. {"setpoint": 21.5, "mode": 1}',
+        btnSimple:      'Simple',
+    }
+};
+
+function t(key) {
+    return (T[currentLanguage] || T.de)[key] || key;
+}
+
+function applyTranslations() {
+    document.getElementById('lbl-input-data').textContent   = t('lblInputData');
+    document.getElementById('btn-encode').textContent        = t('btnEncode');
+    document.getElementById('btn-history').textContent       = t('btnHistory');
+    document.getElementById('history-title').textContent     = t('historyTitle');
+    const histEmpty = document.getElementById('history-empty');
+    if (histEmpty) histEmpty.textContent = t('historyEmpty');
+    document.getElementById('result-placeholder').textContent = t('resultPH');
+    document.getElementById('btn-copy-hex').textContent      = t('btnCopyHex');
+    document.getElementById('btn-copy-bytes').textContent    = t('btnCopyBytes');
+    document.getElementById('btn-copy-b64').textContent      = t('btnCopyB64');
+    document.getElementById('lbl-encoder-title').textContent = t('encoderTitle');
+    document.getElementById('lbl-library').textContent       = t('lblLibrary');
+    document.getElementById('btn-lib-save').innerHTML        = t('btnSave');
+    document.getElementById('btn-lib-new').innerHTML         = t('btnNew');
+    document.getElementById('lbl-templates').textContent     = t('lblTemplates');
+    document.getElementById('lbl-hint-code').innerHTML       = t('hintCode');
+    document.getElementById('lbl-output-title').textContent  = t('outputTitle');
+    document.getElementById('lbl-input-json-full').textContent = t('lblInputFull');
+    document.getElementById('lbl-hint-json').innerHTML       = t('hintJson');
+    document.getElementById('lbl-output-raw').textContent    = t('lblOutputRaw');
+    document.getElementById('lbl-byte-table').textContent    = t('lblByteTable');
+    document.getElementById('th-idx').textContent   = t('thIdx');
+    document.getElementById('th-hex').textContent   = t('thHex');
+    document.getElementById('th-dec').textContent   = t('thDec');
+    document.getElementById('th-bin').textContent   = t('thBin');
+    document.getElementById('th-ascii').textContent = t('thAscii');
+    document.getElementById('btn-lib-save').title              = t('titleSave');
+    document.getElementById('btn-lib-new').title               = t('titleNew');
+    document.getElementById('btn-lib-rename').title            = t('titleRename');
+    document.getElementById('btn-lib-delete').title            = t('titleDelete');
+    document.getElementById('encoderCode').placeholder         = t('phEncoderCode');
+    document.getElementById('outputArea').placeholder          = t('phOutputArea');
+    document.getElementById('btn-template-simple').textContent = t('btnSimple');
+    document.getElementById('inputJsonInline').placeholder    = t('phInputInline');
+    // Library select placeholder
+    const sel = document.getElementById('librarySelect');
+    if (sel.options[0] && sel.options[0].value === '-1') {
+        sel.options[0].textContent = t('noEncoderSaved');
+    }
+    renderHistoryList();
+}
+
+window.onLanguageChange = applyTranslations;
+
+// =====================================================================
+//  CODE TEMPLATES
+// =====================================================================
+const TEMPLATES = {
+    de: {
+        lorawan: `// Standard LoRaWAN Codec Format (encodeDownlink)
+function encodeDownlink(input) {
+    var data = input.data;
+    var bytes = [];
+    var errors = [];
+    var warnings = [];
+
+    // Beispiel: Setpoint als 16-bit Integer (×10)
+    if (data.setpoint !== undefined) {
+        var sp = Math.round(data.setpoint * 10);
+        bytes.push(0x01);                        // Parameter-ID
+        bytes.push((sp >> 8) & 0xFF);            // High Byte
+        bytes.push(sp & 0xFF);                   // Low Byte
+    }
+
+    // Beispiel: Mode als 8-bit Integer
+    if (data.mode !== undefined) {
+        if (data.mode < 0 || data.mode > 5) {
+            errors.push('mode muss zwischen 0 und 5 liegen');
+        } else {
+            bytes.push(0x02);
+            bytes.push(data.mode & 0xFF);
+        }
+    }
+
+    return {
+        bytes: bytes,
+        fPort: input.fPort || 1,
+        errors: errors,
+        warnings: warnings
+    };
+}`,
+
+        simple: `// Einfacher Encoder – bytes direkt zusammenbauen
+function encodeDownlink(input) {
+    var d = input.data;
+    var bytes = [];
+
+    // Wert als 1 Byte
+    bytes.push(d.value & 0xFF);
+
+    return { bytes: bytes, fPort: input.fPort || 1, errors: [], warnings: [] };
+}`,
+
+        thermokon: `// Thermokon JOY LoRaWAN Downlink Encoder
+// Parameter-IDs laut Thermokon Dokumentation
+function encodeDownlink(input) {
+    var d = input.data;
+    var bytes = [];
+    var errors = [];
+    var warnings = [];
+
+    function push16(id, val) {
+        var v = Math.round(val);
+        bytes.push(id);
+        bytes.push((v >> 8) & 0xFF);
+        bytes.push(v & 0xFF);
+    }
+    function push8(id, val) {
+        bytes.push(id);
+        bytes.push(val & 0xFF);
+    }
+
+    // Setpoint Temperatur (0x0001), Einheit: 0.1 K, Bereich: 0…400 (0..40°C)
+    if (d.setpoint !== undefined) {
+        var sp = Math.round(d.setpoint * 10);
+        if (sp < 0 || sp > 400) errors.push('setpoint out of range (0..40 °C)');
+        else push16(0x01, sp);
+    }
+
+    // Betriebsmodus (0x0002): 0=Auto, 1=Heizen, 2=Kühlen, 3=Lüften, 4=Standby
+    if (d.mode !== undefined) {
+        if (d.mode < 0 || d.mode > 4) errors.push('mode out of range (0..4)');
+        else push8(0x02, d.mode);
+    }
+
+    // Präsenz Override (0x0003): 0=Abwesend, 1=Anwesend
+    if (d.presence !== undefined) {
+        push8(0x03, d.presence ? 1 : 0);
+    }
+
+    // Lüfterstufe (0x0004): 0=Auto, 1=Stufe1, 2=Stufe2, 3=Stufe3
+    if (d.fanSpeed !== undefined) {
+        if (d.fanSpeed < 0 || d.fanSpeed > 3) errors.push('fanSpeed out of range (0..3)');
+        else push8(0x04, d.fanSpeed);
+    }
+
+    return {
+        bytes: bytes,
+        fPort: input.fPort || 1,
+        errors: errors,
+        warnings: warnings
+    };
+}`,
+
+        modbus: `// Modbus-ähnlicher Encoder: Register-Adresse + Wert
+function encodeDownlink(input) {
+    var d = input.data;
+    var bytes = [];
+    var errors = [];
+
+    // Funktion: Schreibe Register
+    // Format: [FunctionCode(1), RegHigh(1), RegLow(1), ValHigh(1), ValLow(1)]
+    var fc = d.functionCode || 0x06;  // Write Single Register
+    var reg = d.register || 0x0000;
+    var val = d.value || 0x0000;
+
+    bytes.push(fc & 0xFF);
+    bytes.push((reg >> 8) & 0xFF);
+    bytes.push(reg & 0xFF);
+    bytes.push((val >> 8) & 0xFF);
+    bytes.push(val & 0xFF);
+
+    return { bytes: bytes, fPort: input.fPort || 1, errors: errors, warnings: [] };
+}`,
+
+        ttn: `// TTN v3 Encoder Format (encodeDownlink)
+// Kompatibel mit The Things Network v3 und ChirpStack v4
+function encodeDownlink(input) {
+    var bytes = [];
+    var warnings = [];
+    var errors = [];
+
+    // input.data enthält die zu encodierenden Felder
+    var data = input.data || {};
+
+    // Beispiel: LED an/aus
+    if (data.led !== undefined) {
+        bytes.push(data.led ? 0xFF : 0x00);
+    }
+
+    // Beispiel: Intervall in Sekunden (uint16 big-endian)
+    if (data.interval !== undefined) {
+        var iv = Math.round(data.interval);
+        if (iv < 0 || iv > 65535) {
+            errors.push('interval out of range (0..65535)');
+        } else {
+            bytes.push((iv >> 8) & 0xFF);
+            bytes.push(iv & 0xFF);
+        }
+    }
+
+    return {
+        bytes: bytes,
+        fPort: input.fPort || 1,
+        warnings: warnings,
+        errors: errors
+    };
+}`
+    },
+    en: {
+        lorawan: `// Standard LoRaWAN Codec Format (encodeDownlink)
+function encodeDownlink(input) {
+    var data = input.data;
+    var bytes = [];
+    var errors = [];
+    var warnings = [];
+
+    // Example: Setpoint as 16-bit integer (×10)
+    if (data.setpoint !== undefined) {
+        var sp = Math.round(data.setpoint * 10);
+        bytes.push(0x01);                        // Parameter ID
+        bytes.push((sp >> 8) & 0xFF);            // High byte
+        bytes.push(sp & 0xFF);                   // Low byte
+    }
+
+    // Example: Mode as 8-bit integer
+    if (data.mode !== undefined) {
+        if (data.mode < 0 || data.mode > 5) {
+            errors.push('mode must be between 0 and 5');
+        } else {
+            bytes.push(0x02);
+            bytes.push(data.mode & 0xFF);
+        }
+    }
+
+    return {
+        bytes: bytes,
+        fPort: input.fPort || 1,
+        errors: errors,
+        warnings: warnings
+    };
+}`,
+
+        simple: `// Simple encoder – build bytes directly
+function encodeDownlink(input) {
+    var d = input.data;
+    var bytes = [];
+
+    // Value as 1 byte
+    bytes.push(d.value & 0xFF);
+
+    return { bytes: bytes, fPort: input.fPort || 1, errors: [], warnings: [] };
+}`,
+
+        thermokon: `// Thermokon JOY LoRaWAN Downlink Encoder
+// Parameter IDs according to Thermokon documentation
+function encodeDownlink(input) {
+    var d = input.data;
+    var bytes = [];
+    var errors = [];
+    var warnings = [];
+
+    function push16(id, val) {
+        var v = Math.round(val);
+        bytes.push(id);
+        bytes.push((v >> 8) & 0xFF);
+        bytes.push(v & 0xFF);
+    }
+    function push8(id, val) {
+        bytes.push(id);
+        bytes.push(val & 0xFF);
+    }
+
+    // Setpoint temperature (0x0001), unit: 0.1 K, range: 0…400 (0..40°C)
+    if (d.setpoint !== undefined) {
+        var sp = Math.round(d.setpoint * 10);
+        if (sp < 0 || sp > 400) errors.push('setpoint out of range (0..40 °C)');
+        else push16(0x01, sp);
+    }
+
+    // Operating mode (0x0002): 0=Auto, 1=Heat, 2=Cool, 3=Fan, 4=Standby
+    if (d.mode !== undefined) {
+        if (d.mode < 0 || d.mode > 4) errors.push('mode out of range (0..4)');
+        else push8(0x02, d.mode);
+    }
+
+    // Presence override (0x0003): 0=Absent, 1=Present
+    if (d.presence !== undefined) {
+        push8(0x03, d.presence ? 1 : 0);
+    }
+
+    // Fan speed (0x0004): 0=Auto, 1=Level1, 2=Level2, 3=Level3
+    if (d.fanSpeed !== undefined) {
+        if (d.fanSpeed < 0 || d.fanSpeed > 3) errors.push('fanSpeed out of range (0..3)');
+        else push8(0x04, d.fanSpeed);
+    }
+
+    return {
+        bytes: bytes,
+        fPort: input.fPort || 1,
+        errors: errors,
+        warnings: warnings
+    };
+}`,
+
+        modbus: `// Modbus-style encoder: register address + value
+function encodeDownlink(input) {
+    var d = input.data;
+    var bytes = [];
+    var errors = [];
+
+    // Function: Write register
+    // Format: [FunctionCode(1), RegHigh(1), RegLow(1), ValHigh(1), ValLow(1)]
+    var fc = d.functionCode || 0x06;  // Write Single Register
+    var reg = d.register || 0x0000;
+    var val = d.value || 0x0000;
+
+    bytes.push(fc & 0xFF);
+    bytes.push((reg >> 8) & 0xFF);
+    bytes.push(reg & 0xFF);
+    bytes.push((val >> 8) & 0xFF);
+    bytes.push(val & 0xFF);
+
+    return { bytes: bytes, fPort: input.fPort || 1, errors: errors, warnings: [] };
+}`,
+
+        ttn: `// TTN v3 Encoder Format (encodeDownlink)
+// Compatible with The Things Network v3 and ChirpStack v4
+function encodeDownlink(input) {
+    var bytes = [];
+    var warnings = [];
+    var errors = [];
+
+    // input.data contains the fields to encode
+    var data = input.data || {};
+
+    // Example: LED on/off
+    if (data.led !== undefined) {
+        bytes.push(data.led ? 0xFF : 0x00);
+    }
+
+    // Example: Interval in seconds (uint16 big-endian)
+    if (data.interval !== undefined) {
+        var iv = Math.round(data.interval);
+        if (iv < 0 || iv > 65535) {
+            errors.push('interval out of range (0..65535)');
+        } else {
+            bytes.push((iv >> 8) & 0xFF);
+            bytes.push(iv & 0xFF);
+        }
+    }
+
+    return {
+        bytes: bytes,
+        fPort: input.fPort || 1,
+        warnings: warnings,
+        errors: errors
+    };
+}`
+    }
+};
+
+function loadTemplate(name) {
+    const tpl = (TEMPLATES[currentLanguage] || TEMPLATES.de)[name];
+    if (tpl) {
+        document.getElementById('encoderCode').value = tpl;
+        // Reset library selection
+        document.getElementById('librarySelect').value = '-1';
+        currentLibrarySlot = -1;
+    }
+}
+
+// =====================================================================
+//  STATE
+// =====================================================================
+let lastBytes = null;
+let lastFPort = 1;
+let runHistory = JSON.parse(localStorage.getItem('enc-run-history') || '[]');
+let library    = JSON.parse(localStorage.getItem('enc-library') || '[]');
+let currentLibrarySlot = -1;
+
+// =====================================================================
+//  ENCODER EXECUTION
+// =====================================================================
+function runEncoder() {
+    const code    = document.getElementById('encoderCode').value.trim();
+    const fPort   = parseInt(document.getElementById('fPortInput').value) || 1;
+    const inlineJson = document.getElementById('inputJsonInline').value.trim();
+    const fullJson   = document.getElementById('inputJsonFull').value.trim();
+
+    // Sync inline -> full if inline has content
+    let dataStr = inlineJson || fullJson;
+    if (!dataStr) dataStr = '{}';
+
+    let inputData;
+    try {
+        inputData = JSON.parse(dataStr);
+    } catch (e) {
+        showError(t('errJsonParse') + ' ' + e.message);
+        return;
+    }
+
+    // Sync full editor with what we parsed
+    document.getElementById('inputJsonFull').value = JSON.stringify(inputData, null, 2);
+
+    if (!code) {
+        showError(t('errNoFunc'));
+        return;
+    }
+
+    let result;
+    try {
+        // Execute the encoder in a sandboxed function scope
+        // We support both encodeDownlink(input) and encode(input)
+        const fn = new Function(code + `
+; if (typeof encodeDownlink === 'function') return encodeDownlink(arguments[0]);
+  if (typeof encode === 'function') return encode(arguments[0]);
+  throw new Error('${t('errNoFunc').replace(/'/g, "\\'")}');
+`);
+        result = fn({ data: inputData, fPort: fPort });
+    } catch (e) {
+        showError(t('errException') + e.message);
+        return;
+    }
+
+    if (!result || !Array.isArray(result.bytes)) {
+        showError(t('errNoBytes'));
+        return;
+    }
+
+    lastBytes = result.bytes;
+    lastFPort = result.fPort || fPort;
+
+    // Display result
+    showResult(result);
+
+    // Add to history
+    addToHistory({ bytes: result.bytes, fPort: lastFPort, input: inputData, ts: Date.now() });
+}
+
+function showError(msg) {
+    const box = document.getElementById('resultBox');
+    box.innerHTML = `<span class="err-line">⚠ ${escHtml(msg)}</span>`;
+    document.getElementById('outputMeta').style.display = 'none';
+    document.getElementById('statusMsg').className = 'status error';
+    document.getElementById('statusMsg').textContent = msg;
+    document.getElementById('outputArea').value = '';
+    document.getElementById('byteTableSection').style.display = 'none';
+    document.getElementById('btn-copy-hex').disabled = true;
+    document.getElementById('btn-copy-bytes').disabled = true;
+    document.getElementById('btn-copy-b64').disabled = true;
+    lastBytes = null;
+}
+
+function showResult(result) {
+    const bytes = result.bytes;
+    const fPort = result.fPort || lastFPort;
+
+    // Hex string
+    const hexStr = bytes.map(b => ('00' + (b & 0xFF).toString(16).toUpperCase()).slice(-2)).join('');
+
+    // Chip view in sticky box
+    const box = document.getElementById('resultBox');
+    if (bytes.length === 0) {
+        box.innerHTML = `<span style="color:#aaa; font-style:italic;">[ Keine Bytes ]</span>`;
+    } else {
+        box.innerHTML = bytes.map(b =>
+            `<span class="byte-chip">${('00' + (b & 0xFF).toString(16).toUpperCase()).slice(-2)}</span>`
+        ).join('');
+    }
+
+    // Meta tags
+    const metaDiv = document.getElementById('outputMeta');
+    metaDiv.style.display = 'flex';
+    let metaHtml = `<span class="meta-tag meta-fport">fPort: ${escHtml(String(fPort))}</span>`;
+    metaHtml += `<span class="meta-tag meta-len">${bytes.length} Bytes</span>`;
+    metaHtml += `<span class="meta-tag meta-hex">${escHtml(hexStr) || '(leer)'}</span>`;
+    if (result.warnings && result.warnings.length > 0) {
+        result.warnings.forEach(w => metaHtml += `<span class="meta-tag meta-warn">⚠ ${escHtml(String(w))}</span>`);
+    }
+    if (result.errors && result.errors.length > 0) {
+        result.errors.forEach(e => metaHtml += `<span class="meta-tag meta-err">✖ ${escHtml(String(e))}</span>`);
+    }
+    metaDiv.innerHTML = metaHtml;
+
+    // Raw JSON output
+    document.getElementById('outputArea').value = JSON.stringify(result, null, 2);
+
+    // Status
+    const statusEl = document.getElementById('statusMsg');
+    if (result.errors && result.errors.length > 0) {
+        statusEl.className = 'status error';
+        statusEl.textContent = '✖ ' + result.errors.join('; ');
+    } else if (result.warnings && result.warnings.length > 0) {
+        statusEl.className = 'status warn';
+        statusEl.textContent = '⚠ ' + result.warnings.join('; ');
+    } else {
+        statusEl.className = 'status success';
+        statusEl.textContent = `✔ ${bytes.length} ${bytes.length === 1 ? 'Byte' : 'Bytes'} kodiert`;
+    }
+
+    // Byte table
+    renderByteTable(bytes);
+
+    // Enable copy buttons
+    document.getElementById('btn-copy-hex').disabled   = bytes.length === 0;
+    document.getElementById('btn-copy-bytes').disabled = bytes.length === 0;
+    document.getElementById('btn-copy-b64').disabled   = bytes.length === 0;
+}
+
+function renderByteTable(bytes) {
+    const section = document.getElementById('byteTableSection');
+    if (bytes.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    const body = document.getElementById('byteTableBody');
+    body.innerHTML = bytes.map((b, i) => {
+        const hex = ('00' + (b & 0xFF).toString(16).toUpperCase()).slice(-2);
+        const dec = (b & 0xFF).toString(10);
+        const bin = ('00000000' + (b & 0xFF).toString(2)).slice(-8);
+        const code = b & 0xFF;
+        const ascii = (code >= 32 && code < 127) ? String.fromCharCode(code) : '·';
+        return `<tr>
+            <td class="td-index">[${i}]</td>
+            <td class="td-hex">0x${hex}</td>
+            <td class="td-dec">${dec}</td>
+            <td class="td-bin">${bin}</td>
+            <td class="td-ascii">${escHtml(ascii)}</td>
+        </tr>`;
+    }).join('');
+}
+
+// =====================================================================
+//  COPY FUNCTIONS
+// =====================================================================
+function copyHex() {
+    if (!lastBytes) return;
+    const hex = lastBytes.map(b => ('00' + (b & 0xFF).toString(16).toUpperCase()).slice(-2)).join('');
+    copyToClip(hex);
+}
+
+function copyBytes() {
+    if (!lastBytes) return;
+    const str = '[' + lastBytes.join(', ') + ']';
+    copyToClip(str);
+}
+
+function copyBase64() {
+    if (!lastBytes) return;
+    const bin = String.fromCharCode.apply(null, lastBytes.map(b => b & 0xFF));
+    const b64 = btoa(bin);
+    copyToClip(b64);
+}
+
+function copyToClip(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        const el = document.getElementById('copyStatus');
+        el.textContent = t('copied');
+        el.style.opacity = '1';
+        setTimeout(() => { el.style.opacity = '0'; }, 1800);
+    });
+}
+
+// =====================================================================
+//  HISTORY
+// =====================================================================
+function addToHistory(entry) {
+    runHistory.unshift(entry);
+    if (runHistory.length > 20) runHistory = runHistory.slice(0, 20);
+    localStorage.setItem('enc-run-history', JSON.stringify(runHistory));
+    renderHistoryList();
+}
+
+function renderHistoryList() {
+    const list = document.getElementById('historyList');
+    if (!runHistory.length) {
+        list.innerHTML = `<div class="history-empty" id="history-empty">${t('historyEmpty')}</div>`;
+        return;
+    }
+    list.innerHTML = runHistory.map((h, i) => {
+        const hex = h.bytes.map(b => ('00' + (b & 0xFF).toString(16).toUpperCase()).slice(-2)).join('');
+        const date = new Date(h.ts);
+        const timeStr = date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        return `<div class="history-item" onclick="loadFromHistory(${i})">
+            <span class="history-item-bytes" title="fPort: ${escHtml(String(h.fPort))}">
+                <b>P${h.fPort}</b> ${escHtml(hex || '(leer)')}
+            </span>
+            <span class="history-item-meta">${timeStr}</span>
+        </div>`;
+    }).join('');
+}
+
+function loadFromHistory(i) {
+    const h = runHistory[i];
+    if (!h) return;
+    document.getElementById('inputJsonInline').value = JSON.stringify(h.input);
+    document.getElementById('inputJsonFull').value   = JSON.stringify(h.input, null, 2);
+    document.getElementById('fPortInput').value      = h.fPort;
+    toggleHistory(false);
+    runEncoder();
+}
+
+function toggleHistory(force) {
+    const dd = document.getElementById('historyDropdown');
+    if (force === false) { dd.classList.remove('open'); return; }
+    dd.classList.toggle('open');
+}
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.history-container')) {
+        document.getElementById('historyDropdown').classList.remove('open');
+    }
+});
+
+// =====================================================================
+//  LIBRARY
+// =====================================================================
+function refreshLibrarySelect() {
+    const sel = document.getElementById('librarySelect');
+    const prev = sel.value;
+    // Rebuild options
+    while (sel.options.length > 1) sel.remove(1);
+    library.forEach((slot, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = slot.name;
+        sel.appendChild(opt);
+    });
+    // Restore selection
+    if (prev !== '-1' && prev < library.length) sel.value = prev;
+    document.getElementById('libSlotCount').textContent = library.length > 0 ? `(${library.length})` : '';
+}
+
+function loadLibrarySlot(idx) {
+    idx = parseInt(idx);
+    if (idx < 0 || idx >= library.length) { currentLibrarySlot = -1; return; }
+    const slot = library[idx];
+    document.getElementById('encoderCode').value = slot.code;
+    if (slot.inputJson) {
+        document.getElementById('inputJsonInline').value = slot.inputJson;
+        document.getElementById('inputJsonFull').value   = slot.inputJson;
+    }
+    currentLibrarySlot = idx;
+}
+
+function saveToLibrary() {
+    const code = document.getElementById('encoderCode').value.trim();
+    if (!code) return;
+    const inputJson = document.getElementById('inputJsonFull').value.trim() ||
+                      document.getElementById('inputJsonInline').value.trim();
+
+    if (currentLibrarySlot >= 0 && currentLibrarySlot < library.length) {
+        library[currentLibrarySlot].code = code;
+        library[currentLibrarySlot].inputJson = inputJson;
+    } else {
+        const name = prompt(t('renamePrompt'), t('newEncoderName') + ' ' + (library.length + 1));
+        if (!name) return;
+        library.push({ name: name.trim(), code: code, inputJson: inputJson });
+        currentLibrarySlot = library.length - 1;
+    }
+    localStorage.setItem('enc-library', JSON.stringify(library));
+    refreshLibrarySelect();
+    document.getElementById('librarySelect').value = currentLibrarySlot;
+    flashSaveStatus();
+}
+
+function newEncoder() {
+    document.getElementById('encoderCode').value = '';
+    document.getElementById('inputJsonInline').value = '';
+    document.getElementById('inputJsonFull').value   = '';
+    document.getElementById('librarySelect').value = '-1';
+    currentLibrarySlot = -1;
+}
+
+function renameLibrarySlot() {
+    if (currentLibrarySlot < 0 || currentLibrarySlot >= library.length) return;
+    const name = prompt(t('renamePrompt'), library[currentLibrarySlot].name);
+    if (!name) return;
+    library[currentLibrarySlot].name = name.trim();
+    localStorage.setItem('enc-library', JSON.stringify(library));
+    refreshLibrarySelect();
+    document.getElementById('librarySelect').value = currentLibrarySlot;
+}
+
+function deleteLibrarySlot() {
+    if (currentLibrarySlot < 0 || currentLibrarySlot >= library.length) return;
+    if (!confirm(t('confirmDelete'))) return;
+    library.splice(currentLibrarySlot, 1);
+    localStorage.setItem('enc-library', JSON.stringify(library));
+    currentLibrarySlot = -1;
+    document.getElementById('librarySelect').value = '-1';
+    refreshLibrarySelect();
+}
+
+function flashSaveStatus() {
+    const el = document.getElementById('copyStatus');
+    el.textContent = t('saved');
+    el.style.opacity = '1';
+    setTimeout(() => { el.style.opacity = '0'; }, 1800);
+}
+
+// =====================================================================
+//  INLINE → FULL JSON SYNC
+// =====================================================================
+document.getElementById('inputJsonInline').addEventListener('input', function() {
+    const v = this.value.trim();
+    if (!v) return;
+    try {
+        const parsed = JSON.parse(v);
+        document.getElementById('inputJsonFull').value = JSON.stringify(parsed, null, 2);
+    } catch (_) { /* keep current */ }
+});
+
+// Enter in inline input triggers encode
+document.getElementById('inputJsonInline').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); runEncoder(); }
+});
+
+// =====================================================================
+//  UTILITIES
+// =====================================================================
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+// =====================================================================
+//  INIT
+// =====================================================================
+refreshLibrarySelect();
+renderHistoryList();
+applyTranslations();
+
+// Load default template on first visit
+if (!document.getElementById('encoderCode').value) {
+    loadTemplate('lorawan');
+}
+// Set a useful default input
+if (!document.getElementById('inputJsonInline').value) {
+    document.getElementById('inputJsonInline').value = '{"setpoint": 21.5, "mode": 1}';
+    document.getElementById('inputJsonFull').value = '{\n  "setpoint": 21.5,\n  "mode": 1\n}';
+}
+</script>
+</body>
+</html>

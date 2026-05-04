@@ -53,6 +53,7 @@ const NAV_APPS = [
     { id: 'lorawan-decoder',    label: '📡 LoRaWAN Decoder',     path: 'iot-apps/lorawan-decoder/lorawan-decoder.html' },
     { id: 'gemini-chat',        labels: { de: '🤖 KI-Assistent', en: '🤖 AI Assistant' }, path: 'iot-apps/gemini-chat/gemini-chat.html' },
     { id: 'sensor-dashboard',   labels: { de: '📊 Sensor Dashboard', en: '📊 Sensor Dashboard' }, path: 'iot-apps/sensor-dashboard/sensor-dashboard.html' },
+    { id: 'downlink-encoder-tester', labels: { de: '🧪 Encoder Tester', en: '🧪 Encoder Tester' }, path: 'iot-apps/downlink-encoder-tester/downlink-encoder-tester.html' },
 ];
 
 function renderHeader(config) {

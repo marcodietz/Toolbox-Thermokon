@@ -117,15 +117,35 @@ let configParametersData  = [];
 let runtimeParametersData = [];
 let lorawanParametersData  = [];
 
+function parseCSVLine(line) {
+    // Proper CSV parser respecting quoted fields (handles semicolons inside quotes)
+    const cols = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+            inQuotes = !inQuotes;
+        } else if (ch === ';' && !inQuotes) {
+            cols.push(current);
+            current = '';
+        } else {
+            current += ch;
+        }
+    }
+    cols.push(current);
+    return cols;
+}
+
 function parseParameterCSV(text) {
     // Spalten der "Liste Parameter JOY LoRaWAN.csv":
-    // 0:#  1:Type  2:Category  3:DE  4:EN  5:name  6:hex  7:RegisterModbus  8:meta  9:info_de  10:info_en  11:range
+    // 0:#  1:Type  2:Category  3:DE  4:EN  5:name  6:hex  7:RegisterModbus  8:meta  9:info_de  10:info_en  11:range  12:min  13:max  14:res
     const lines = text.trim().split('\n');
     const result = { config: [], runtime: [], lorawan: [] };
     for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
-        const cols = line.split(';');
+        const cols = parseCSVLine(line);
         if (cols.length < 10) continue;
         const typeRaw = cols[1].trim().toLowerCase();
         let section;
@@ -137,6 +157,10 @@ function parseParameterCSV(text) {
         const meta = isNaN(metaRaw) ? metaRaw : parseInt(metaRaw);
         const hexRaw = cols[6].trim();
         const hex = hexRaw.padStart(4, '0').toUpperCase();
+        const minVal  = cols[12] ? parseFloat(cols[12].trim().replace(',', '.')) : -32768;
+        const maxVal  = cols[13] ? parseFloat(cols[13].trim().replace(',', '.')) : 32767;
+        const resRaw  = cols[14] ? cols[14].trim().replace(/\r/g, '').replace(',', '.') : '1';
+        const res     = parseFloat(resRaw) || 1;
         const obj = {
             de:      cols[3].trim(),
             en:      cols[4].trim(),
@@ -145,7 +169,10 @@ function parseParameterCSV(text) {
             name:    cols[5].trim(),
             info_de: cols[9].trim(),
             info_en: cols[10].trim(),
-            range:   cols[11] ? cols[11].trim() : ''
+            range:   cols[11] ? cols[11].trim() : '',
+            min:     isNaN(minVal) ? -32768 : minVal,
+            max:     isNaN(maxVal) ? 32767  : maxVal,
+            res:     res
         };
         if (result[section]) result[section].push(obj);
     }
@@ -225,7 +252,7 @@ function renderParameterSection(title, parameters, startIndex, infoKey) {
             <div class="modbus-col">[${typeof p.meta === 'number' ? p.meta + 1 : p.meta}]</div>
             <div class="protaddr-col">[${p.meta}]</div>
             <div class="input">
-                <input type="number" min="-32768" max="32767" data-index="${startIndex + index}">
+                <input type="number" min="${p.min}" max="${p.max}" step="${p.res}" data-index="${startIndex + index}">
             </div>
             <div class="range-col">${p.range || ''}</div>
             <div class="download-icon">
@@ -278,7 +305,9 @@ function generateDownlink() {
         if (input.value !== "" && count < 10) {
             const index = input.dataset.index;
             const parameter = allParameters[index];
-            const valueHex = toHex(input.value);
+            const res = parameter.res || 1;
+            const scaledValue = Math.round(parseFloat(input.value) / res);
+            const valueHex = toHex(scaledValue);
             rawResult += parameter.hex + valueHex;
             htmlResult += '<span class="dl-pair"><span class="dl-id">' + parameter.hex + '</span><span class="dl-val">' + valueHex + '</span></span>';
             count++;
@@ -307,10 +336,14 @@ function clearAllInputs() {
 
 document.addEventListener("input", function(e) {
     if (e.target.tagName === 'INPUT' && e.target.type === 'number') {
-        let val = parseInt(e.target.value, 10);
+        let val = parseFloat(e.target.value);
         if (!isNaN(val)) {
-            if (val > 32767) e.target.value = 32767;
-            else if (val < -32768) e.target.value = -32768;
+            const allParameters = [...runtimeParametersData, ...configParametersData, ...lorawanParametersData];
+            const parameter = allParameters[e.target.dataset.index];
+            const minVal = parameter ? parameter.min : -32768;
+            const maxVal = parameter ? parameter.max : 32767;
+            if (val > maxVal) e.target.value = maxVal;
+            else if (val < minVal) e.target.value = minVal;
         }
     }
     generateDownlink();
